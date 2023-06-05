@@ -19,6 +19,7 @@ extern "C" void slave_example(Para *para);
 // source: vector b
 PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int maxIter, double tolerance, double normfactor) {
     int iter = 0;
+    // cells: matrix rows
     int cells = ldu_matrix.cells;
     int faces = ldu_matrix.faces;
 
@@ -46,7 +47,7 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
     for(int i = 0; i < cells; i++) {
         pcg.r[i] = source[i] - pcg.Ax[i];
     }
-	// calculate residual
+	// calculate residual, scale
     pcg.residual = pcg_gsumMag(pcg.r, cells);
     double init_residual = pcg.residual;
 	
@@ -54,13 +55,14 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
         do {
             if(iter == 0) {
                 // z = M(-1) * r
+                // M: diagonal matrix of csr matrix A : diagonal preprocess
                 pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd(pcg.r, pcg.z, cells);
                 // iter ==0 ; p = z					 
                 memcpy(pcg.p, pcg.z, cells*sizeof(double));	 
             } else {
-                pcg.sumprod_old = pcg.sumprod; 
+                pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
                 pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
                 // tol_0= swap(r) * z
@@ -178,6 +180,7 @@ void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
     free(tmp);
 }
 
+// basic spmv, 需要负载均衡
 void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
     for(int i = 0; i < csr_matrix.rows; i++) {
         int start = csr_matrix.row_off[i];
@@ -214,9 +217,14 @@ void v_sub_dot_product(const int nCells, const double *sub, const double *subed,
     }
 }
 
+// diagonal precondition, get matrix M^(-1) (diagonal matrix)
+// pre_mat_val: 非对角元     : csr_matrix中元素
+//              对角元素     : 0
+// preD       : csr_matrix中对角元素的倒数
 void pcg_init_precondition_csr (const CsrMatrix &csr_matrix, Precondition &pre) {
     for(int i = 0 ; i < csr_matrix.rows; i++) {
         for(int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i+1]; j++){
+            // get diagonal matrix
             if(csr_matrix.cols[j] == i) {
                 pre.pre_mat_val[j] = 0.;	 
                 pre.preD[i] = 1.0/csr_matrix.data[j];
@@ -227,11 +235,13 @@ void pcg_init_precondition_csr (const CsrMatrix &csr_matrix, Precondition &pre) 
     }
 }
 
+// ? 存疑，循环用处?
 void pcg_precondition_csr(const CsrMatrix &csr_matrix, const Precondition &pre, double *rAPtr, double *wAPtr) {
     double* gAPtr = (double*)malloc(csr_matrix.rows*sizeof(double));
     v_dot_product(csr_matrix.rows, pre.preD, rAPtr, wAPtr);
     memset(gAPtr, 0, csr_matrix.rows*sizeof(double));
-    for(int deg = 1; deg < 2; deg++) {   
+    for(int deg = 1; deg < 2; deg++) {
+        // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
         csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
         v_sub_dot_product(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr);
         memset(gAPtr, 0, csr_matrix.rows*sizeof(double));
@@ -239,6 +249,8 @@ void pcg_precondition_csr(const CsrMatrix &csr_matrix, const Precondition &pre, 
     free(gAPtr);
 }
 
+// reduce
+// 规约操作，需要核间通信
 double pcg_gsumMag(double *r, int size) {
     double ret = .0;
     for(int i = 0; i < size; i++) {
@@ -247,6 +259,8 @@ double pcg_gsumMag(double *r, int size) {
     return ret;
 }
 
+// multiply and reduce : vector inner product
+// 逐元素与规约操作，需要核间通信
 double pcg_gsumProd(double *z, double *r, int size) {
     double ret = .0;
     for(int i = 0; i < size; i++) {
