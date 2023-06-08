@@ -1,5 +1,7 @@
 ### Xiayanwen Branch For Profiler
 
+### 可视化：见目录matrixdata下
+TODO: 矩阵元素大小分析
 
 profiler to use :
 
