@@ -182,12 +182,26 @@ void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
 
 // basic spmv, 需要负载均衡
 void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
+
+
     for(int i = 0; i < csr_matrix.rows; i++) {
         int start = csr_matrix.row_off[i];
         int num = csr_matrix.row_off[i+1] - csr_matrix.row_off[i];
         double temp = 0;
         for(int j = 0; j < num; j++) {                      
             temp += vec[csr_matrix.cols[start+j]] * csr_matrix.data[start+j]; 
+        }
+        result[i]=temp;
+    }
+}
+
+void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
+    for(int i = 0; i < csr_matrix.cols; i++) {
+        int start = csr_matrix.col_off[i];
+        int num = csr_matrix.col_off[i+1] - csr_matrix.col_off[i];
+        double temp = 0;
+        for(int j = 0; j < num; j++) {                      
+            temp += vec[csr_matrix.rows[start+j]] * csr_matrix.data[start+j]; 
         }
         result[i]=temp;
     }

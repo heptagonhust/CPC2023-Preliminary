@@ -20,6 +20,14 @@ struct CsrMatrix {
     int data_size;
 };
 
+struct CscMatrix {
+    int cols,
+    int *col_off;
+    int *rows;
+    double *data;
+    int data_size;
+}
+
 struct PCG {
     double *r;
     double *z;
