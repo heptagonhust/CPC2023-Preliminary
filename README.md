@@ -3,6 +3,12 @@
 ### 可视化：见目录matrixdata下
 TODO: 矩阵元素大小分析
 
+##### matrix.png:
+原矩阵中非零元素的分布（整个矩阵，不同颜色代表upper和lower）
+
+##### slice:
+根据列划分的非零元素个数 
+
 profiler to use :
 
 ### 1、gprof(both on master and slave) 
