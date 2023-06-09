@@ -83,20 +83,24 @@ void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     free(tmp);
 }
 
-// // basic spmv, 需要负载均衡
-// void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
-//     for (int i = 0; i < csr_matrix.rows; i++) {
-//         int start = csr_matrix.row_off[i];
-//         int num = csr_matrix.row_off[i + 1] - csr_matrix.row_off[i];
-//         double temp = 0;
-//         for (int j = 0; j < num; j++) {
-//             temp +=
-//                 vec[csr_matrix.cols[start + j]] * csr_matrix.data[start + j];
-//         }
-//         result[i] = temp;
-//     }
-// }
-//
+// basic spmv, 需要负载均衡
+void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
+    for (int i = 0; i < csc_matrix.cols; ++i) {
+        result[i] = 0;
+    }
+
+    for (int i = 0; i < csc_matrix.cols; i++) {
+        int start = csc_matrix.col_off[i];
+        int num = csc_matrix.col_off[i + 1] - csc_matrix.col_off[i];
+        for (int j = 0; j < num; j++) {
+            int row = csc_matrix.rows[start + j];
+            int col = i;
+            double data = csc_matrix.data[start + j];
+            result[row] += vec[col] * data;
+        }
+    }
+}
+
 // void csc_precondition_spmv(
 //     const CscMatrix &csc_matrix,
 //     double *vec,
