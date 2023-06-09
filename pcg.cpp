@@ -14,7 +14,7 @@ extern "C" void SubMul(SubMulPara *para);
 extern "C" void Reduce(ReducePara *para);
 extern "C" void MulReduceZR(MulReduceZRPara *para);
 extern "C" void MulReducepAx(MulReducepAxPara *para);
-extern "C" void Updaterxr(UpdatexrPara *para);
+extern "C" void Updatexr(UpdatexrPara *para);
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -317,7 +317,7 @@ void pcg_update_xr(double *x, double *r, double *p, double *Ax, double alpha, in
     para.r = r;
     para.p = p;
     para.Ax = Ax;
-    athread_spawn(Updaterxr, &para);
+    athread_spawn(Updatexr, &para);
     athread_join();
 }
 
