@@ -48,9 +48,32 @@ void csr_to_csc(const CsrMatrix& csr_matrix, CscMatrix& csc_matrix) {
     csc_matrix.col_off[csc_matrix.cols - 1] -= last_column_size;
 }
 
+int count_ldu_matrix_nonzero_elements(const LduMatrix& ldu_matrix) {
+    int result = 0;
+    for (int i = 0; i < ldu_matrix.faces; i++) {
+        if (ldu_matrix.upper[i] != 0.0) {
+            result += 1;
+        }
+    }
+
+    for (int i = 0; i < ldu_matrix.faces; i++) {
+        if (ldu_matrix.lower[i] != 0.0) {
+            result += 1;
+        }
+    }
+
+    for (int i = 0; i < ldu_matrix.cells; i++) {
+        if (ldu_matrix.diag[i] != 0.0) {
+            result += 1;
+        }
+    }
+
+    return result;
+}
+
 void ldu_to_csc(const LduMatrix& ldu_matrix, CscMatrix& csc_matrix) {
     csc_matrix.cols = ldu_matrix.cells;
-    csc_matrix.data_size = 2 * ldu_matrix.faces + ldu_matrix.cells;
+    csc_matrix.data_size = count_ldu_matrix_nonzero_elements(ldu_matrix);
     csc_matrix.col_off = (int*)malloc((csc_matrix.cols + 1) * sizeof(int));
     csc_matrix.rows = (int*)malloc(csc_matrix.data_size * sizeof(int));
     csc_matrix.data = (double*)malloc(csc_matrix.data_size * sizeof(double));
@@ -59,14 +82,26 @@ void ldu_to_csc(const LduMatrix& ldu_matrix, CscMatrix& csc_matrix) {
     int* tmp = (int*)malloc((csc_matrix.cols + 1) * sizeof(int));
 
     csc_matrix.col_off[0] = 0;
-    for (int i = 1; i < csc_matrix.cols + 1; i++)
-        csc_matrix.col_off[i] = 1;
+    for (int i = 1; i < ldu_matrix.cells + 1; i++) {
+        if (ldu_matrix.diag[i - 1] != 0.0) {
+            csc_matrix.col_off[i] = 1;
+        } else {
+            csc_matrix.col_off[i] = 0;
+        }
+    }
 
     for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.uPtr[i];
-        col = ldu_matrix.lPtr[i];
-        csc_matrix.col_off[row + 1]++;
-        csc_matrix.col_off[col + 1]++;
+        if (ldu_matrix.lower[i] != 0.0) {
+            col = ldu_matrix.lPtr[i];
+            csc_matrix.col_off[col + 1]++;
+        }
+    }
+
+    for (int i = 0; i < ldu_matrix.faces; i++) {
+        if (ldu_matrix.upper[i] != 0.0) {
+            row = ldu_matrix.uPtr[i];
+            csc_matrix.col_off[row + 1]++;
+        }
     }
 
     for (int i = 0; i < ldu_matrix.cells; i++) {
@@ -77,29 +112,36 @@ void ldu_to_csc(const LduMatrix& ldu_matrix, CscMatrix& csc_matrix) {
         &tmp[0],
         &csc_matrix.col_off[0],
         (ldu_matrix.cells + 1) * sizeof(int));
+
     // lower
     for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.uPtr[i];
-        col = ldu_matrix.lPtr[i];
-        offset = tmp[col]++;
-        csc_matrix.rows[offset] = row;
-        csc_matrix.data[offset] = ldu_matrix.lower[i];
+        if (ldu_matrix.lower[i] != 0.0) {
+            row = ldu_matrix.uPtr[i];
+            col = ldu_matrix.lPtr[i];
+            offset = tmp[col]++;
+            csc_matrix.rows[offset] = row;
+            csc_matrix.data[offset] = ldu_matrix.lower[i];
+        }
     }
 
     // diag
     for (int i = 0; i < ldu_matrix.cells; i++) {
-        offset = tmp[i]++;
-        csc_matrix.rows[offset] = i;
-        csc_matrix.data[offset] = ldu_matrix.diag[i];
+        if (ldu_matrix.diag[i] != 0.0) {
+            offset = tmp[i]++;
+            csc_matrix.rows[offset] = i;
+            csc_matrix.data[offset] = ldu_matrix.diag[i];
+        }
     }
 
     // upper
     for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.lPtr[i];
-        col = ldu_matrix.uPtr[i];
-        offset = tmp[col]++;
-        csc_matrix.rows[offset] = row;
-        csc_matrix.data[offset] = ldu_matrix.upper[i];
+        if (ldu_matrix.upper[i] != 0.0) {
+            row = ldu_matrix.lPtr[i];
+            col = ldu_matrix.uPtr[i];
+            offset = tmp[col]++;
+            csc_matrix.rows[offset] = row;
+            csc_matrix.data[offset] = ldu_matrix.upper[i];
+        }
     }
 
     free(tmp);
@@ -291,11 +333,18 @@ int main(void) {
 
     for (int _i = 0; _i < 25; ++_i) {
         int matrix_size = (_i + 1) * 5;
-        fprintf(stderr, "[INFO] matrix size = %d\n", matrix_size);
         generate_ldu_matrix(ldu_matrix, matrix_size);
         ldu_to_csr(ldu_matrix, csr_matrix);
         ldu_to_csc(ldu_matrix, csc_matrix_from_ldu);
         csr_to_csc(csr_matrix, csc_matrix_from_csr);
+
+        fprintf(
+            stderr,
+            "[INFO] matrix size = %d, csr size = %d, csc_from_ldu size = %d, compress_rate %.2f%%\n",
+            matrix_size * matrix_size,
+            csr_matrix.data_size,
+            csc_matrix_from_ldu.data_size,
+            csc_matrix_from_ldu.data_size * 100.0 / csr_matrix.data_size);
 
         auto plain_csc1 = plain_matrix_from_csc(csc_matrix_from_ldu);
         auto plain_csc2 = plain_matrix_from_csc(csc_matrix_from_csr);
