@@ -18,6 +18,8 @@ __thread_local double Ax[dataBufferSize]__attribute__ ((aligned(64)));
 __thread_local double x[dataBufferSize] __attribute__ ((aligned(64)));
 
 
+// --------------------------------------------------------------------------------
+
 void MulAdd(MulAddPara* para){
 	MulAddPara slavePara;
 	//接收结构体数据
@@ -42,7 +44,7 @@ void MulAdd(MulAddPara* para){
 	CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
 	DMARplyCount += 2;
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
-			
+
 	//计算
 	int i = 0;
 	for(; i < len; i++){
@@ -90,7 +92,6 @@ void Mul(MulPara* para) {
 
 
 // --------------------------------------------------------------------------------
-
 
 void SubMul(SubMulPara* para) {
 	SubMulPara slavePara;
@@ -199,6 +200,8 @@ void MulReduceZR(MulReduceZRPara *para) {
 }
 
 
+// --------------------------------------------------------------------------------
+
 void MulReducepAx(MulReducepAxPara *para) {
 	MulReducepAxPara slavePara;
 	CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
@@ -230,6 +233,8 @@ void MulReducepAx(MulReducepAxPara *para) {
 		CRTS_dma_put(slavePara.result, &sum, sizeof(double));
 }
 
+
+// --------------------------------------------------------------------------------
 
 void Updatexr(UpdatexrPara *para) {
 	UpdatexrPara slavePara;
