@@ -17,31 +17,7 @@ typedef struct {
     double beta;
     int cells;
 } Para;
-
-typedef struct {
-    int data_size;  // number of non-zero ele
-    double *data;   // size = NN0
-    int *rows;      // size = NN0
-    int *col_off;   // size = sp_col + 1
-} CscBlock;
-
-typedef struct {
-    // 将一个 chunk 分成 n_block 个 block
-    int n_block;
-    CscBlock *blocks;
-} CscChunk;
-
-typedef struct {
-    // 将一个 sp 分成 64 个 chunk
-    int n_chunk;    // 64
-    CscChunk *chunks;
-    int sp_row;
-    int sp_col;
-    double *vec;    // 列向量，行数为 sp_col
-    double *result; // 列向量，行数为 sp_row
-} SpmvPara;
 extern "C" void slave_example(Para *para);
-extern "C" void csc_spmv_slave(CscChunkPara *chunk);
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -233,23 +209,6 @@ void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
         }
         result[i] = temp;
     }
-}
-
-#define N_SLAVE_CORES 64
-
-void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
-    int chunk_size = csc_matrix.cols / N_SLAVE_CORES;
-    // #ifndef NDEBUG
-    //     printf("current slave cores: %d", CRTS_athread_get_max_threads());
-    // #endif
-    for (int i = 0; i < N_SLAVE_CORES; ++i) {
-        CscChunkPara chunk_para;
-        // TODO: 将 csc 分成 64 个 chunk
-        CRTS_athread_create(i, csc_spmv_slave, &chunk_para);
-    }
-
-    // 主核与核组同步
-    CRTS_sync_master_array();
 }
 
 void csr_precondition_spmv(
