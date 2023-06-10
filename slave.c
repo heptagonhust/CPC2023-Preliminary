@@ -10,10 +10,6 @@ typedef struct{
 	int cells;
 } Para;
 
-typedef struct {
-    // TODO
-} CscChunkPara;
-
 #define dataBufferSize 2000
 __thread_local crts_rply_t DMARply = 0;
 __thread_local unsigned int DMARplyCount = 0;
@@ -54,28 +50,4 @@ void slave_example(Para* para){
 	CRTS_dma_iput(slavePara.p+addr, &p, len * sizeof(double), &DMARply);
 	DMARplyCount++;
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
-}
-
-#define SLICE_SIZE 1024
-
-void csc_spmv_slave(CscChunkPara *chunk_para) {
-    int cols; // chunk 的列数
-    double *dst; // 计算结果应该放回主存的位置
-    int slave_id = CRTS_smng_get_tid();
-
-    // TODO: 根据 slave_id 对传入的 chunk_para 进行处理，获取到一些主存中的地址
-
-    for (int i = 0; i < cols; ++i) {
-        // 处理一列
-        double result = .0;
-        // TODO: 计算切片长度
-        int n_slices;
-        for (int j = 0; j < n_slices; ++j) {
-            // 处理一个列的切片
-
-        }
-        CRTS_dma_iput(dst + i, &result, sizeof(double));
-    }
-    
-    CRTS_sync_master_array();
 }
