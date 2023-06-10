@@ -17,13 +17,7 @@ typedef struct {
     double beta;
     int cells;
 } Para;
-
-typedef struct {
-    // TODO
-} CscChunkPara;
-
 extern "C" void slave_example(Para *para);
-extern "C" void csc_spmv_slave(CscChunkPara *chunk);
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -215,23 +209,6 @@ void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
         }
         result[i] = temp;
     }
-}
-
-#define N_SLAVE_CORES 64
-
-void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
-    int chunk_size = csc_matrix.cols / N_SLAVE_CORES;
-    // #ifndef NDEBUG
-    //     printf("current slave cores: %d", CRTS_athread_get_max_threads());
-    // #endif
-    for (int i = 0; i < N_SLAVE_CORES; ++i) {
-        CscChunkPara chunk_para;
-        // TODO: 将 csc 分成 64 个 chunk
-        CRTS_athread_create(i, csc_spmv_slave, &chunk_para);
-    }
-
-    // 主核与核组同步
-    CRTS_sync_master_array();
 }
 
 void csr_precondition_spmv(
