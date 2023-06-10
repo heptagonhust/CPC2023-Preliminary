@@ -15,13 +15,14 @@
 ///
 /// block 中第 i 列的非零元素为 data[col_off[i]: col_off[i+1]]（左闭右开）
 typedef struct {
+    int col_num;    // **这个** block 的列数
     // block 开始和结束的行序号（左闭右开）（暂时没有用到）
     int row_begin;
     int row_end;
     int data_size;  // **这个** block 中非零元素的个数(nn0)
     double *data;   // **这个** block 中的非零元素数组，数组大小为 nn0
     int *rows;      // **这个** block 中的每个非零元素的行号，数组大小为 nn0
-    int *col_off;   // **这个** block 中每列第一个非零元素在 data 数组中的索引，数组大小为 sp_col + 1
+    int *col_off;   // **这个** block 中每列第一个非零元素在 data 数组中的索引，数组大小为 col_num + 1
 } CscBlock;
 
 /// 在矩阵分块计算中，每个 chunk 和 vec 的一个 slice 相乘， chunk 的列数等于 slice 的行数
@@ -33,17 +34,16 @@ typedef struct {
 /// ```
 /// 已知 chunk 在主存的地址 p ，获取该 chunk
 /// ```c
-/// int block_num;
-/// DMA_GET(&block_num, p, sizeof(int), &rply);
-/// int real_chunk_size = sizeof(CscChunk) + block_num * sizeof(CscBlock);
-/// CscChunk *chunk = CRTS_pldm_malloc(real_chunk_size);
-/// DMA_GET(chunk, p, real_chunk_size, &rply);
+/// int size;
+/// DMA_GET(&size, p, sizeof(int), &rply);
+/// CscChunk *chunk = CRTS_pldm_malloc(size);
+/// DMA_GET(chunk, p, size, &rply);
 /// ```
 typedef struct {
     // 将一个 chunk 分成 block_num 个 block
     // **必须是第一个字段**
-    int block_num;
-    double *vec;   // size = sp_col
+    int size;
+    double *vec;   // 数组大小为 sp_col
     // chunk 开始和结束的列序号（左闭右开）
     int col_begin;
     int col_end;
