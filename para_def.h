@@ -2,16 +2,16 @@
 // cells : rows
 // beta  : parameter
 typedef struct {
-	double *p_k;
-	double *z_k1;
-	double beta_k;
-	int cells;
+    double *p_k;
+    double *z_k1;
+    double beta_k;
+    int cells;
 } MulAddPara;
 
-typedef struct{
+typedef struct {
     double *m;
     double *r_k1;
-		double *z_k1;
+    double *z_k1;
     int cells;
 } MulPara;
 
@@ -28,8 +28,8 @@ typedef struct {
     int cells;
     double normfactor;
     double tolerance;
-		int *result;
-		double *residual;
+    int *result;
+    double *residual;
 } ReducePara;
 
 typedef struct {

@@ -1,21 +1,25 @@
+#include "vector_opt.h"
+
+#include <crts.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <crts.h>
 
-#include "pcg_def.h"
 #include "para_def.h"
-#include "vector_opt.h"
+#include "pcg_def.h"
 #include "spmv_opt.h"
 
-void pcg_init_precondition_csr_opt(const CsrMatrix &csr_matrix, Precondition &pre) {
-    for(int i = 0 ; i < csr_matrix.rows; i++) {
-        for(int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i+1]; j++){
+void pcg_init_precondition_csr_opt(
+    const CsrMatrix &csr_matrix,
+    Precondition &pre) {
+    for (int i = 0; i < csr_matrix.rows; i++) {
+        for (int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i + 1];
+             j++) {
             // get diagonal matrix
-            if(csr_matrix.cols[j] == i) {
-                pre.pre_mat_val[j] = 0.;	 
-                pre.preD[i] = 1.0/csr_matrix.data[j];
+            if (csr_matrix.cols[j] == i) {
+                pre.pre_mat_val[j] = 0.;
+                pre.preD[i] = 1.0 / csr_matrix.data[j];
             } else {
                 pre.pre_mat_val[j] = csr_matrix.data[j];
             }
@@ -23,8 +27,12 @@ void pcg_init_precondition_csr_opt(const CsrMatrix &csr_matrix, Precondition &pr
     }
 }
 
-void pcg_precondition_csr_opt(const CsrMatrix &csr_matrix, const Precondition &pre, double *rAPtr, double *wAPtr) {
-//! ---------------------------- START -----------------------------------------------
+void pcg_precondition_csr_opt(
+    const CsrMatrix &csr_matrix,
+    const Precondition &pre,
+    double *rAPtr,
+    double *wAPtr) {
+    //! ---------------------------- START -----------------------------------------------
     MulPara para;
     para.m = pre.preD;
     para.r_k1 = rAPtr;
@@ -33,13 +41,13 @@ void pcg_precondition_csr_opt(const CsrMatrix &csr_matrix, const Precondition &p
     athread_spawn(Mul, &para);
     athread_join();
     // v_dot_product(csr_matrix.rows, pre.preD, rAPtr, wAPtr);
-//! ------------------------------ END -----------------------------------------------
-    double* gAPtr = (double*)malloc(csr_matrix.rows*sizeof(double));
-    memset(gAPtr, 0, csr_matrix.rows*sizeof(double));
-    for(int deg = 1; deg < 2; deg++) {
+    //! ------------------------------ END -----------------------------------------------
+    double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
+    memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
+    for (int deg = 1; deg < 2; deg++) {
         // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
         csr_precondition_spmv_opt(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
-//! ---------------------------- START -----------------------------------------------
+        //! ---------------------------- START -----------------------------------------------
         SubMulPara para_sub;
         para_sub.r_k1 = rAPtr;
         para_sub.g = gAPtr;
@@ -49,14 +57,15 @@ void pcg_precondition_csr_opt(const CsrMatrix &csr_matrix, const Precondition &p
         athread_spawn(SubMul, &para);
         athread_join();
         // v_sub_dot_product(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr);
-//! ------------------------------ END -----------------------------------------------
-        memset(gAPtr, 0, csr_matrix.rows*sizeof(double));
+        //! ------------------------------ END -----------------------------------------------
+        memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     }
     free(gAPtr);
 }
 
 //! res += fasb(r[i])
-double pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance) {
+double
+pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance) {
     int result;
     double residual;
     ReducePara para;
@@ -70,7 +79,6 @@ double pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance)
     athread_join();
     return residual;
 }
-
 
 // multiply and reduce : vector inner product
 // 逐元素与规约操作，需要核间通信
@@ -103,7 +111,13 @@ double pcg_gsumProd_opt_pAx(double *p, double *Ax, int size) {
 
 //! x = x + alpha * p
 //! r = r - alpha * Ax
-void pcg_update_xr_opt(double *x, double *r, double *p, double *Ax, double alpha, int cells) {
+void pcg_update_xr_opt(
+    double *x,
+    double *r,
+    double *p,
+    double *Ax,
+    double alpha,
+    int cells) {
     UpdatexrPara para;
     para.cells = cells;
     para.alpha = alpha;
