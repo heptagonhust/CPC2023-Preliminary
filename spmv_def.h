@@ -29,9 +29,20 @@ typedef struct {
 ///
 /// 分配一个 拥有 block_num 个 block 的 chunk ：
 /// ```c
-/// CscBlock *blk = (CscBlock *)malloc(sizeof(CscChunk) + block_num * sizeof(CscBlock))
+/// CscBlock *blk = (CscBlock *)malloc(sizeof(CscChunk) + block_num * sizeof(CscBlock));
+/// ```
+/// 已知 chunk 在主存的地址 p ，获取该 chunk
+/// ```c
+/// int block_num;
+/// DMA_GET(&block_num, p, sizeof(int), &rply);
+/// int real_chunk_size = sizeof(CscChunk) + block_num * sizeof(CscBlock);
+/// CscChunk *chunk = CRTS_pldm_malloc(real_chunk_size);
+/// DMA_GET(chunk, p, real_chunk_size, &rply);
 /// ```
 typedef struct {
+    // 将一个 chunk 分成 block_num 个 block
+    // **必须是第一个字段**
+    int block_num;
     double *vec;   // size = sp_col
     // chunk 开始和结束的列序号（左闭右开）
     int col_begin;
@@ -39,8 +50,6 @@ typedef struct {
     // chunk 开始和结束的行序号（左闭右开）（暂时没有用到）
     int row_begin;
     int row_end;
-    // 将一个 chunk 分成 block_num 个 block
-    int block_num;
     CscBlock blocks[];
 } CscChunk;
 
