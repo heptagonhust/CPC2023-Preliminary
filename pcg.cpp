@@ -34,14 +34,14 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
     Precondition pre;
     pre.preD = (double *)malloc(cells*sizeof(double));
     pre.pre_mat_val = (double *)malloc((cells + faces*2)*sizeof(double));
-    
+
     //format transform
     CsrMatrix csr_matrix;
-    ldu_to_csr(ldu_matrix, csr_matrix); 
+    ldu_to_csr(ldu_matrix, csr_matrix);
 
     pcg_init_precondition_csr(csr_matrix, pre);
 
-    // AX = A * X	 
+    // AX = A * X
     csr_spmv(csr_matrix, x, pcg.Ax);
     // r = b - A * x
     for(int i = 0; i < cells; i++) {
@@ -50,7 +50,7 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
 	// calculate residual, scale
     pcg.residual = pcg_gsumMag(pcg.r, cells);
     double init_residual = pcg.residual;
-	
+
     if(fabs(pcg.residual / normfactor) > tolerance ) {
         do {
             if(iter == 0) {
@@ -59,23 +59,23 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
                 pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd(pcg.r, pcg.z, cells);
-                // iter ==0 ; p = z					 
-                memcpy(pcg.p, pcg.z, cells*sizeof(double));	 
+                // iter ==0 ; p = z
+                memcpy(pcg.p, pcg.z, cells*sizeof(double));
             } else {
                 pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
                 pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd(pcg.r, pcg.z, cells);
-                // beta = tol_1 / tol_0 
-                // p = z + beta * p				 
+                // beta = tol_1 / tol_0
+                // p = z + beta * p
                 pcg.beta = pcg.sumprod / pcg.sumprod_old;
-				
+
                 //未优化代码段
                 /*for(int i = 0; i < cells; i++) {
                     pcg.p[i] = pcg.z[i] + pcg.beta * pcg.p[i];
                 }*/
-				
+
 				// == 优化示例代码段 ==
 				static int isInit = 0;
 				if(isInit == 0){
@@ -96,10 +96,10 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
 				// == 优化示例代码段 ==
             }
 
-            // Ax = A * p			 
+            // Ax = A * p
             csr_spmv(csr_matrix, pcg.p, pcg.Ax);
 
-            // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p) 
+            // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p)
             pcg.alpha = pcg.sumprod / pcg_gsumProd(pcg.p, pcg.Ax, cells);
 
             // x = x + alpha * p
@@ -109,13 +109,13 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
                 pcg.r[i] = pcg.r[i] - pcg.alpha * pcg.Ax[i];
             }
 
-            // tol_1 = swap(z) * r				 
+            // tol_1 = swap(z) * r
             pcg.residual = pcg_gsumMag(pcg.r, cells);
         } while( ++iter < maxIter  && (pcg.residual/normfactor) >= tolerance);
     }
-    
+
     INFO("PCG: init residual = %e, final residual = %e, iterations: %d\n", init_residual, pcg.residual, iter);
-    
+
     free_pcg(pcg);
     free_csr_matrix(csr_matrix);
     free_precondition(pre);
@@ -124,6 +124,60 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
     pcg_return.residual = pcg.residual;
     pcg_return.iter = iter;
     return pcg_return;
+}
+
+void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
+    csc_matrix.cols = ldu_matrix.cells;
+    csc_matrix.data_size = 2*ldu_matrix.faces + ldu_matrix.cells;
+    csc_matrix.col_off = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
+    csc_matrix.rows = (int *)malloc(csc_matrix.data_size*sizeof(int));
+    csc_matrix.data = (double *)malloc(csc_matrix.data_size*sizeof(double));
+
+    int row, col, offset;
+    int *tmp = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
+
+    csc_matrix.col_off[0] = 0;
+    for(int i = 1; i < csc_matrix.cols + 1; i++)
+        csc_matrix.col_off[i] = 1;
+
+    for(int i = 0; i < ldu_matrix.faces; i++){
+        row     = ldu_matrix.uPtr[i] ;
+        col = ldu_matrix.lPtr[i] ;
+        csc_matrix.col_off[row+1]++;
+        csc_matrix.col_off[col+1]++;
+    }
+
+    for(int i = 0;i< ldu_matrix.cells; i++){
+        csc_matrix.col_off[i+1] += csc_matrix.col_off[i];
+    }
+
+    memcpy(&tmp[0], &csc_matrix.col_off[0], (ldu_matrix.cells + 1)*sizeof(int));
+    // lower
+    for(int i = 0; i < ldu_matrix.faces; i++ ){
+        row = ldu_matrix.uPtr[i];
+        col = ldu_matrix.lPtr[i];
+        offset = tmp[col]++;
+        csc_matrix.rows[offset] = row;
+        csc_matrix.data[offset] = ldu_matrix.lower[i];
+    }
+
+    // diag
+    for(int i = 0; i < ldu_matrix.cells; i++){
+        offset = tmp[i]++;
+        csc_matrix.rows[offset] = i;
+        csc_matrix.data[offset] = ldu_matrix.diag[i];
+    }
+
+    // upper
+    for(int i = 0; i < ldu_matrix.faces; i++){
+        row = ldu_matrix.lPtr[i];
+        col = ldu_matrix.uPtr[i];
+        offset = tmp[col]++;
+        csc_matrix.rows[offset] = row;
+        csc_matrix.data[offset] = ldu_matrix.upper[i];
+    }
+
+    free(tmp);
 }
 
 void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
@@ -138,8 +192,8 @@ void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
 
     csr_matrix.row_off[0] = 0;
     for(int i = 1; i < csr_matrix.rows + 1; i++)
-        csr_matrix.row_off[i] = 1; 
-        
+        csr_matrix.row_off[i] = 1;
+
     for(int i = 0; i < ldu_matrix.faces; i++){
         row	= ldu_matrix.uPtr[i] ;
         col = ldu_matrix.lPtr[i] ;
@@ -186,8 +240,8 @@ void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
         int start = csr_matrix.row_off[i];
         int num = csr_matrix.row_off[i+1] - csr_matrix.row_off[i];
         double temp = 0;
-        for(int j = 0; j < num; j++) {                      
-            temp += vec[csr_matrix.cols[start+j]] * csr_matrix.data[start+j]; 
+        for(int j = 0; j < num; j++) {
+            temp += vec[csr_matrix.cols[start+j]] * csr_matrix.data[start+j];
         }
         result[i]=temp;
     }
@@ -198,8 +252,8 @@ void csr_precondition_spmv(const CsrMatrix &csr_matrix, double *vec, double *val
         int start = csr_matrix.row_off[i];
         int num = csr_matrix.row_off[i+1] - csr_matrix.row_off[i];
         double temp = 0;
-        for(int j = 0; j < num; j++) {                      
-            temp += vec[csr_matrix.cols[start+j]] * val[start+j]; 
+        for(int j = 0; j < num; j++) {
+            temp += vec[csr_matrix.cols[start+j]] * val[start+j];
         }
         result[i]=temp;
     }
@@ -226,7 +280,7 @@ void pcg_init_precondition_csr (const CsrMatrix &csr_matrix, Precondition &pre) 
         for(int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i+1]; j++){
             // get diagonal matrix
             if(csr_matrix.cols[j] == i) {
-                pre.pre_mat_val[j] = 0.;	 
+                pre.pre_mat_val[j] = 0.;
                 pre.preD[i] = 1.0/csr_matrix.data[j];
             } else {
                 pre.pre_mat_val[j] = csr_matrix.data[j];
