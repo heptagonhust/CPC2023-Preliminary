@@ -18,6 +18,7 @@ typedef struct
     double beta;
     int cells;
 } Para;
+<<<<<<< HEAD
 
 /// 在矩阵分块计算中，每个 block 和 vec 的一个 slice 相乘， block 的列数等于 slice 的行数
 /// 同一个 chunk 中的 block 与 slice 的计算结果并起来获得 chunk_result ：
@@ -79,8 +80,9 @@ typedef struct
     double *result; // 结果列向量，行数为 sp_row
 } SpmvPara;
 
+=======
+>>>>>>> cf3f23a (revert: back to master/baseline)
 extern "C" void slave_example(Para *para);
-extern "C" void csc_spmv_slave(CscChunkPara *chunk);
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -286,25 +288,6 @@ void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result)
         }
         result[i] = temp;
     }
-}
-
-#define N_SLAVE_CORES 64
-
-void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result)
-{
-    int chunk_size = csc_matrix.cols / N_SLAVE_CORES;
-    // #ifndef NDEBUG
-    //     printf("current slave cores: %d", CRTS_athread_get_max_threads());
-    // #endif
-    for (int i = 0; i < N_SLAVE_CORES; ++i)
-    {
-        CscChunkPara chunk_para;
-        // TODO: 将 csc 分成 64 个 chunk
-        CRTS_athread_create(i, csc_spmv_slave, &chunk_para);
-    }
-
-    // 主核与核组同步
-    CRTS_sync_master_array();
 }
 
 void csr_precondition_spmv(const CsrMatrix &csr_matrix, double *vec, double *val, double *result)
