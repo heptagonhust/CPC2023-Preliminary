@@ -2,5 +2,4 @@
 pcg_solve
 *.[o]
 a.out
-.clang-format
 crts.h
