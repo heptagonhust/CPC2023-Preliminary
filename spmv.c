@@ -45,12 +45,18 @@ void csc_spmv_slave(void *para) {
     }
 
     // 获取 chunk
-    CscChunk *chunk_ptr = spmv_para.chunks + id;
-    int block_num;
-    DMA_GET(&block_num, chunk_ptr, sizeof(int), &DMARply);
-    int real_chunk_size = sizeof(CscChunk) + block_num * sizeof(CscBlock);
-    CscChunk *chunk = CRTS_pldm_malloc(real_chunk_size);
-    DMA_GET(chunk, chunk_ptr, real_chunk_size, &DMARply);
+    CscChunk **chunk_array_ptr = spmv_para.chunks;
+    int chunk_num = spmv_para.chunk_num;
+    CscChunk **chunk_array = CRTS_pldm_malloc(sizeof(CscChunk *) * chunk_num);
+    DMA_GET(chunk_array, chunk_array_ptr, sizeof(CscChunk *) * chunk_num, &DMARply);
+    CscChunk *chunk_ptr = chunk_array[id];
+    CRTS_pldm_free(chunk_array, sizeof(CscChunk *) * chunk_num);
+
+    int size;
+    DMA_GET(&size, chunk_ptr, sizeof(int), &DMARply);
+    CscChunk *chunk = CRTS_pldm_malloc(size);
+    DMA_GET(chunk, chunk_ptr, size, &DMARply);
+    int block_num = chunk->block_num;
 
     // 获取该 chunk 对应 vec 的 slice
     double *vec = chunk->vec;
@@ -130,5 +136,5 @@ void csc_spmv_slave(void *para) {
 
     CRTS_pldm_free(chunk_result, sizeof(double) * row);
     CRTS_pldm_free(slice, slice_size);
-    CRTS_pldm_free(chunk, real_chunk_size);
+    CRTS_pldm_free(chunk, size);
 }

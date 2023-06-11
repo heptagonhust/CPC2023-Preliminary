@@ -50,6 +50,7 @@ typedef struct {
     // chunk 开始和结束的行序号（左闭右开）（暂时没有用到）
     int row_begin;
     int row_end;
+    int block_num;
     CscBlock blocks[];
 } CscChunk;
 
@@ -61,7 +62,7 @@ typedef struct {
 typedef struct {
     // 将一个 sp 分成 64 个 chunk
     int chunk_num;      // 64
-    CscChunk *chunks;
+    CscChunk **chunks;
     int sp_row;         // 稀疏矩阵的行数
     int sp_col;         // 稀疏矩阵的列数，也是右乘向量的行数
     double *result;     // 结果列向量，行数为 sp_row
