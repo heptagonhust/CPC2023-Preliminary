@@ -1,11 +1,40 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
 #include "matrix_utils.cpp"
 #include "pcg.h"
 #include "spmv_def.h"
+
+/**
+ * csc_matrix_sort_elements() - 对 CscMatrix 中的元素排序，使每列中的元素的行号都单调递增。
+ * 
+ * @mtx: 待排序的 CscMatrix
+ */
+void csc_matrix_sort_elements(CscMatrix &mtx) {
+    for (int i = 0; i < mtx.cols; ++i) {
+        int size = mtx.col_off[i + 1] - mtx.col_off[i];
+        int *rows = mtx.rows + mtx.col_off[i];
+        double *data = mtx.data + mtx.col_off[i];
+        struct Element {
+            int row;
+            double data;
+
+            bool operator<(const Element &another) {
+                return row < another.row;
+            }
+        };
+        Element *elements = (Element *)malloc(sizeof(Element) * size);
+        for (int j = 0; j < size; ++j) {
+            elements[j].row = rows[j];
+            elements[j].data = data[j];
+        }
+        std::sort(elements, elements + size);
+        free(elements);
+    }
+}
 
 void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     csc_matrix.cols = ldu_matrix.cells;
@@ -81,6 +110,8 @@ void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     }
 
     free(tmp);
+
+    csc_matrix_sort_elements(csc_matrix);
 }
 
 // basic spmv, 需要负载均衡

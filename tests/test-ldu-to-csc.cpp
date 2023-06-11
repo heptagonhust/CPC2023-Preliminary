@@ -11,6 +11,18 @@
 #include "pcg_def.h"
 #include "vector_utils.cpp"
 
+bool check_csc_matrix_row_number_order(CscMatrix &mtx) {
+    for (int i = 0; i < mtx.cols; ++i) {
+        int size = mtx.col_off[i + 1] - mtx.col_off[i];
+        int *rows = mtx.rows + mtx.col_off[i];
+        for (int j = 1; j < size; ++j) {
+            if (rows[j - 1] >= rows[j]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 int main(void) {
     srand(time(NULL));
 
@@ -25,6 +37,8 @@ int main(void) {
         ldu_to_csr(ldu_matrix, csr_matrix);
         ldu_to_csc(ldu_matrix, csc_matrix_from_ldu);
         csr_to_csc(csr_matrix, csc_matrix_from_csr);
+
+        assert(check_csc_matrix_row_number_order(csc_matrix_from_csr));
 
         fprintf(
             stderr,
