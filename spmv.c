@@ -13,10 +13,11 @@ __thread_local unsigned int DMARplyCount = 0;
 
 #define BUF_ITEM 1024
 __thread_local double redu_buf[BUF_ITEM] __attribute__((aligned(64)));
+
 void csc_spmv_slave(void *para) {
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para, sizeof(SpmvPara), &DMARply);
-    int id = CRTS_smng_get_tid();
+    int id = CRTS_tid;
 
     int col = spmv_para.sp_col;
     int row = spmv_para.sp_row;
