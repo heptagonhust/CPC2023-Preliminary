@@ -9,7 +9,6 @@
 #include <cstring>
 
 #include "pcg_def.h"
-#include "slave_def.h"
 #include "pcg.h"
 
 void pcg_init_precondition_csr_opt(

@@ -96,10 +96,11 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
 
             // x = x + alpha * p
             // r = r - alpha * Ax
-            for(int i = 0; i < cells; i++) {
-                x[i] = x[i] + pcg.alpha * pcg.p[i];
-                pcg.r[i] = pcg.r[i] - pcg.alpha * pcg.Ax[i];
-            }
+            // for(int i = 0; i < cells; i++) {
+            //     x[i] = x[i] + pcg.alpha * pcg.p[i];
+            //     pcg.r[i] = pcg.r[i] - pcg.alpha * pcg.Ax[i];
+            // }
+            pcg_update_xr_opt(x, pcg.r, pcg.p, pcg.Ax, pcg.alpha, cells, ntask);
 
             // tol_1 = swap(z) * r				 
             pcg.residual = pcg_gsumMag_opt(pcg.r, cells, normfactor, tolerance, ntask);
