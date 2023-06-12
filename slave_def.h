@@ -1,11 +1,15 @@
 
-// cells : rows
-// beta  : parameter
+typedef struct {
+    int col_start;
+    int col_num;
+} Slave_task;
+
 typedef struct {
     double *p_k;
     double *z_k1;
     double beta_k;
     int cells;
+    Slave_task task[64];
 } MulAddPara;
 
 typedef struct {
@@ -13,6 +17,7 @@ typedef struct {
     double *r_k1;
     double *z_k1;
     int cells;
+    Slave_task task[64];
 } MulPara;
 
 typedef struct {
@@ -21,6 +26,7 @@ typedef struct {
     double *m;
     double *z_k1;
     int cells;
+    Slave_task task[64];
 } SubMulPara;
 
 typedef struct {
@@ -30,6 +36,7 @@ typedef struct {
     double tolerance;
     int *result;
     double *residual;
+    Slave_task task[64];
 } ReducePara;
 
 typedef struct {
@@ -37,6 +44,7 @@ typedef struct {
     double *z_k1;
     double *r_k1;
     double *result;
+    Slave_task task[64];
 } MulReduceZRPara;
 
 typedef struct {
@@ -44,6 +52,7 @@ typedef struct {
     double *p_k;
     double *Ax;
     double *result;
+    Slave_task task[64];
 } MulReducepAxPara;
 
 typedef struct {
@@ -53,4 +62,5 @@ typedef struct {
     double *p;
     double *Ax;
     double alpha;
+    Slave_task task[64];
 } UpdatexrPara;

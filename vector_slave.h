@@ -1,6 +1,6 @@
 #pragma once
 
-#include "para_def.h"
+#include "slave_def.h"
 
 void MulAdd(MulAddPara *para);
 void Mul(MulPara *para);

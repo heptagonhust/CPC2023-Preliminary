@@ -5,14 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstring>
 
-#include "para_def.h"
+#include "slave_def.h"
 #include "pcg_def.h"
 #include "spmv_opt.h"
 
 void pcg_init_precondition_csr_opt(
     const CsrMatrix &csr_matrix,
-    Precondition &pre) {
+    Precondition &pre,
+    Slave_task *ntask) {
     for (int i = 0; i < csr_matrix.rows; i++) {
         for (int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i + 1];
              j++) {
@@ -31,33 +33,15 @@ void pcg_precondition_csr_opt(
     const CsrMatrix &csr_matrix,
     const Precondition &pre,
     double *rAPtr,
-    double *wAPtr) {
-    //! ---------------------------- START -----------------------------------------------
-    MulPara para;
-    para.m = pre.preD;
-    para.r_k1 = rAPtr;
-    para.z_k1 = wAPtr;
-    para.cells = csr_matrix.rows;
-    athread_spawn(Mul, &para);
-    athread_join();
-    // v_dot_product(csr_matrix.rows, pre.preD, rAPtr, wAPtr);
-    //! ------------------------------ END -----------------------------------------------
+    double *wAPtr,
+    Slave_task *ntask) {
+    v_dot_product_opt(csr_matrix.rows, pre.preD, rAPtr, wAPtr, ntask);
     double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
     memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
         // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
         csr_precondition_spmv_opt(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
-        //! ---------------------------- START -----------------------------------------------
-        SubMulPara para_sub;
-        para_sub.r_k1 = rAPtr;
-        para_sub.g = gAPtr;
-        para_sub.m = pre.preD;
-        para_sub.z_k1 = wAPtr;
-        para_sub.cells = csr_matrix.rows;
-        athread_spawn(SubMul, &para);
-        athread_join();
-        // v_sub_dot_product(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr);
-        //! ------------------------------ END -----------------------------------------------
+        v_sub_dot_product_opt(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr, ntask);
         memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     }
     free(gAPtr);
@@ -65,7 +49,7 @@ void pcg_precondition_csr_opt(
 
 //! res += fasb(r[i])
 double
-pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance) {
+pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance, Slave_task *ntask) {
     int result;
     double residual;
     ReducePara para;
@@ -75,6 +59,7 @@ pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance) {
     para.r_k1 = r;
     para.result = &result;
     para.residual = &residual;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(Reduce, &para);
     athread_join();
     return residual;
@@ -84,29 +69,65 @@ pcg_gsumMag_opt(double *r, int size, double normfactor, double tolerance) {
 // 逐元素与规约操作，需要核间通信
 // 存在不同的参数调用，分离pcg_gsumProd成为两个函数分别进行调用
 //! result += z[i] * r[i]
-double pcg_gsumProd_opt_zr(double *z, double *r, int size) {
+double pcg_gsumProd_opt_zr(double *z, double *r, int size, Slave_task *ntask) {
     MulReduceZRPara para;
     double sum = .0;
     para.cells = size;
     para.z_k1 = z;
     para.r_k1 = r;
     para.result = &sum;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(MulReduceZR, &para);
     athread_join();
     return sum;
 }
 
 //! result += p[i] * Ax[i]
-double pcg_gsumProd_opt_pAx(double *p, double *Ax, int size) {
+double pcg_gsumProd_opt_pAx(double *p, double *Ax, int size, Slave_task *ntask) {
     MulReducepAxPara para;
     double sum = .0;
     para.cells = size;
     para.p_k = p;
     para.Ax = Ax;
     para.result = &sum;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(MulReducepAx, &para);
     athread_join();
     return sum;
+}
+
+void v_dot_product_opt(
+    const int nCells,
+    double *m,
+    double *r_k1,
+    double *z_k1,
+    Slave_task *ntask) {
+    MulPara para;
+    para.cells = nCells;
+    para.m = m;
+    para.r_k1 = r_k1;
+    para.z_k1 = z_k1;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
+    athread_spawn(Mul, &para);
+    athread_join();
+}
+
+void v_sub_dot_product_opt(
+    const int nCells,
+    double *r_k1,
+    double *g,
+    double *m,
+    double *z_k1,
+    Slave_task *ntask) {
+    SubMulPara para;
+    para.cells = nCells;
+    para.r_k1 = r_k1;
+    para.g = g;
+    para.m = m;
+    para.z_k1 = z_k1;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
+    athread_spawn(SubMul, &para);
+    athread_join();
 }
 
 //! x = x + alpha * p
@@ -117,7 +138,8 @@ void pcg_update_xr_opt(
     double *p,
     double *Ax,
     double alpha,
-    int cells) {
+    int cells, 
+    Slave_task *ntask) {
     UpdatexrPara para;
     para.cells = cells;
     para.alpha = alpha;
@@ -125,6 +147,7 @@ void pcg_update_xr_opt(
     para.r = r;
     para.p = p;
     para.Ax = Ax;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(Updatexr, &para);
     athread_join();
 }

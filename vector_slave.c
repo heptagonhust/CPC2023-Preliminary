@@ -28,17 +28,10 @@ void MulAdd(MulAddPara *para) {
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     double beta = slavePara.beta_k;
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    //计算从核接收数组数据长度和接收位置
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
     //接收数组数据
     CRTS_dma_iget(&p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
@@ -64,16 +57,10 @@ void Mul(MulPara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
 
     CRTS_dma_iget(&M, slavePara.m + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
@@ -97,16 +84,10 @@ void SubMul(SubMulPara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
 
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&g, slavePara.g + addr, len * sizeof(double), &DMARply);
@@ -131,16 +112,11 @@ void Reduce(ReducePara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
+
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
@@ -170,16 +146,11 @@ void MulReduceZR(MulReduceZRPara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
+
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
@@ -203,16 +174,11 @@ void MulReducepAx(MulReducepAxPara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
+
     CRTS_dma_iget(&p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
@@ -237,16 +203,10 @@ void Updatexr(UpdatexrPara *para) {
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
     double alpha = slavePara.alpha;
+    int id = CRTS_tid;
 
-    int len = cells / 64;
-    int rest = cells % 64;
-    int addr;
-    if (CRTS_tid < rest) {
-        len++;
-        addr = CRTS_tid * len;
-    } else {
-        addr = CRTS_tid * len + rest;
-    }
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
 
     CRTS_dma_iget(&x, slavePara.x + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&r, slavePara.r + addr, len * sizeof(double), &DMARply);
