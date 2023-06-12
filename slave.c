@@ -1,6 +1,6 @@
 #include <slave.h>
 #include "pcg_def.h"
-#include "spmv.h"
+#include "spmv_slave.h"
 
 #include <crts.h>
 

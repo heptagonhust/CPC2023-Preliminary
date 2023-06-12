@@ -1,10 +1,10 @@
-#include "spmv.h"
+#include "spmv_slave.h"
 
 #include <crts.h>
 #include <slave.h>
 #include "slave_def.h"
 
-#include "spmv_def.h"
+#include "spmv_slave_def.h"
 
 #include "slave_def.h"
 
