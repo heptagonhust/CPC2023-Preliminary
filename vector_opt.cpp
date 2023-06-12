@@ -9,7 +9,9 @@
 #include <cstring>
 
 #include "pcg_def.h"
+#include "slave_def.h"
 #include "pcg.h"
+
 
 void pcg_init_precondition_csr_opt(
     const CsrMatrix &csr_matrix,
@@ -70,8 +72,9 @@ double pcg_gsumMag_opt(
     para.result = &result;
     para.residual = &residual;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(Reduce, &para);
+    athread_spawn(slave_Reduce, &para);
     athread_join();
+    // printf("vector_opt, 77: residual: %f\n", residual);
     return residual;
 }
 
@@ -87,7 +90,7 @@ double pcg_gsumProd_opt_zr(double *z, double *r, int size, Slave_task *ntask) {
     para.r_k1 = r;
     para.result = &sum;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(MulReduceZR, &para);
+    athread_spawn(slave_MulReduceZR, &para);
     athread_join();
     return sum;
 }
@@ -102,7 +105,7 @@ pcg_gsumProd_opt_pAx(double *p, double *Ax, int size, Slave_task *ntask) {
     para.Ax = Ax;
     para.result = &sum;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(MulReducepAx, &para);
+    athread_spawn(slave_MulReducepAx, &para);
     athread_join();
     return sum;
 }
@@ -119,7 +122,7 @@ void v_dot_product_opt(
     para.r_k1 = r_k1;
     para.z_k1 = z_k1;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(Mul, &para);
+    athread_spawn(slave_Mul, &para);
     athread_join();
 }
 
@@ -137,7 +140,7 @@ void v_sub_dot_product_opt(
     para.m = m;
     para.z_k1 = z_k1;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(SubMul, &para);
+    athread_spawn(slave_SubMul, &para);
     athread_join();
 }
 
@@ -159,7 +162,7 @@ void pcg_update_xr_opt(
     para.p = p;
     para.Ax = Ax;
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(Updatexr, &para);
+    athread_spawn(slave_Updatexr, &para);
     athread_join();
 }
 
@@ -175,6 +178,6 @@ void pcg_update_p_opt(
     para.beta_k = beta;
     para.cells = cells,
     memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
-    athread_spawn(MulAdd, &para);
+    athread_spawn(slave_MulAdd, &para);
     athread_join();
 }

@@ -65,3 +65,20 @@ typedef struct {
     double alpha;
     Slave_task task[64];
 } UpdatexrPara;
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void slave_MulAdd(MulAddPara *para);
+void slave_Mul(MulPara *para);
+void slave_SubMul(SubMulPara *para);
+void slave_Reduce(ReducePara *para);
+void slave_MulReduceZR(MulReduceZRPara *para);
+void slave_MulReducepAx(MulReducepAxPara *para);
+void slave_Updatexr(UpdatexrPara *para);
+
+#ifdef __cplusplus
+}
+#endif

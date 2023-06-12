@@ -3,13 +3,6 @@
 #include "pcg_def.h"
 #include "slave_def.h"
 
-extern "C" void MulAdd(MulAddPara *para);
-extern "C" void Mul(MulPara *para);
-extern "C" void SubMul(SubMulPara *para);
-extern "C" void Reduce(ReducePara *para);
-extern "C" void MulReduceZR(MulReduceZRPara *para);
-extern "C" void MulReducepAx(MulReducepAxPara *para);
-extern "C" void Updatexr(UpdatexrPara *para);
 
 void pcg_init_precondition_csr_opt(
     const CsrMatrix &csr_matrix,

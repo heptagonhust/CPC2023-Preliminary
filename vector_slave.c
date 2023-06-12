@@ -5,6 +5,7 @@
 
 #include "pcg_def.h"
 
+
 #define reduceBufferSize 64
 __thread_local crts_rply_t DMARply = 0;
 __thread_local unsigned int DMARplyCount = 0;
@@ -20,7 +21,7 @@ __thread_local double reducebuf[reduceBufferSize] __attribute__((aligned(64)));
 
 // --------------------------------------------------------------------------------
 
-void MulAdd(MulAddPara *para) {
+void slave_MulAdd(MulAddPara *para) {
     MulAddPara slavePara;
     //接收结构体数据
     CRTS_dma_iget(&slavePara, para, sizeof(MulAddPara), &DMARply);
@@ -56,9 +57,9 @@ void MulAdd(MulAddPara *para) {
 
 // --------------------------------------------------------------------------------
 
-void Mul(MulPara *para) {
+void slave_Mul(MulPara *para) {
     MulPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(MulAddPara), &DMARply);
+    CRTS_dma_iget(&slavePara, para, sizeof(MulPara), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
@@ -90,7 +91,7 @@ void Mul(MulPara *para) {
 
 // --------------------------------------------------------------------------------
 
-void SubMul(SubMulPara *para) {
+void slave_SubMul(SubMulPara *para) {
     SubMulPara slavePara;
     CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
     DMARplyCount++;
@@ -127,9 +128,9 @@ void SubMul(SubMulPara *para) {
 
 // --------------------------------------------------------------------------------
 
-void Reduce(ReducePara *para) {
+void slave_Reduce(ReducePara *para) {
     ReducePara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
+    CRTS_dma_iget(&slavePara, para, sizeof(ReducePara), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
@@ -139,7 +140,7 @@ void Reduce(ReducePara *para) {
     int len = slavePara.task[id].col_num;
 
     double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -153,9 +154,8 @@ void Reduce(ReducePara *para) {
         u.i64 &= 0x7fffffffffffffff;
         local_sum += u.f64;
     }
-
-    CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
-    if (CRTS_tid == 0 && (sum / slavePara.normfactor) < slavePara.tolerance) {
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
+    if (CRTS_tid == 0) {
         int result = 1;
         CRTS_dma_put(slavePara.result, &result, sizeof(int));
         CRTS_dma_put(slavePara.residual, &sum, sizeof(double));
@@ -165,9 +165,9 @@ void Reduce(ReducePara *para) {
 
 // --------------------------------------------------------------------------------
 
-void MulReduceZR(MulReduceZRPara *para) {
+void slave_MulReduceZR(MulReduceZRPara *para) {
     MulReduceZRPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
+    CRTS_dma_iget(&slavePara, para, sizeof(MulReduceZRPara), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
@@ -178,8 +178,8 @@ void MulReduceZR(MulReduceZRPara *para) {
 
     double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
     double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -188,7 +188,7 @@ void MulReduceZR(MulReduceZRPara *para) {
         local_sum += r[i] * z[i];
     }
 
-    CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
     if (CRTS_tid == 0)
         CRTS_dma_put(slavePara.result, &sum, sizeof(double));
     CRTS_pldm_free(r, len * sizeof(double));
@@ -197,9 +197,9 @@ void MulReduceZR(MulReduceZRPara *para) {
 
 // --------------------------------------------------------------------------------
 
-void MulReducepAx(MulReducepAxPara *para) {
+void slave_MulReducepAx(MulReducepAxPara *para) {
     MulReducepAxPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
+    CRTS_dma_iget(&slavePara, para, sizeof(MulReducepAxPara), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
@@ -210,8 +210,8 @@ void MulReducepAx(MulReducepAxPara *para) {
 
     double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
     double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(&p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -220,7 +220,7 @@ void MulReducepAx(MulReducepAxPara *para) {
         local_sum += p[i] * Ax[i];
     }
 
-    CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
     if (CRTS_tid == 0)
         CRTS_dma_put(slavePara.result, &sum, sizeof(double));
     CRTS_pldm_free(p, len * sizeof(double));
@@ -229,9 +229,9 @@ void MulReducepAx(MulReducepAxPara *para) {
 
 // --------------------------------------------------------------------------------
 
-void Updatexr(UpdatexrPara *para) {
+void slave_Updatexr(UpdatexrPara *para) {
     UpdatexrPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
+    CRTS_dma_iget(&slavePara, para, sizeof(UpdatexrPara), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
     int cells = slavePara.cells;
@@ -245,10 +245,10 @@ void Updatexr(UpdatexrPara *para) {
     double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
     double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
     double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(&x, slavePara.x + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&r, slavePara.r + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&p, slavePara.p + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(x, slavePara.x + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(r, slavePara.r + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(p, slavePara.p + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 4;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -257,8 +257,8 @@ void Updatexr(UpdatexrPara *para) {
         r[i] = r[i] - alpha * Ax[i];
     }
 
-    CRTS_dma_iput(slavePara.x + addr, &x, len * sizeof(double), &DMARply);
-    CRTS_dma_iput(slavePara.r + addr, &r, len * sizeof(double), &DMARply);
+    CRTS_dma_iput(slavePara.x + addr, x, len * sizeof(double), &DMARply);
+    CRTS_dma_iput(slavePara.r + addr, r, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
