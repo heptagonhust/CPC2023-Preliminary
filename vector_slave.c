@@ -33,7 +33,7 @@ void MulAdd(MulAddPara *para) {
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
     double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double))
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
     //接收数组数据
     CRTS_dma_iget(p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
@@ -86,7 +86,6 @@ void Mul(MulPara *para) {
     CRTS_pldm_free(M, len * sizeof(double));
     CRTS_pldm_free(r, len * sizeof(double));
     CRTS_pldm_free(z, len * sizeof(double));
-    
 }
 
 // --------------------------------------------------------------------------------
@@ -161,7 +160,7 @@ void Reduce(ReducePara *para) {
         CRTS_dma_put(slavePara.result, &result, sizeof(int));
         CRTS_dma_put(slavePara.residual, &sum, sizeof(double));
     }
-    CRTS_pldm_free(r, len * sizeof(double)); 
+    CRTS_pldm_free(r, len * sizeof(double));
 }
 
 // --------------------------------------------------------------------------------
@@ -192,7 +191,7 @@ void MulReduceZR(MulReduceZRPara *para) {
     CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
     if (CRTS_tid == 0)
         CRTS_dma_put(slavePara.result, &sum, sizeof(double));
-    CRTS_pldm_free(r, len * sizeof(double)); 
+    CRTS_pldm_free(r, len * sizeof(double));
     CRTS_pldm_free(z, len * sizeof(double));
 }
 

@@ -5,15 +5,8 @@
 #include <crts.h>
 
 #include "pcg.h"
+#include "vector_opt.h"
 
-//示例
-typedef struct{
-	double *p;
-	double *z;
-	double beta;
-	int cells;
-} Para;
-extern "C" void slave_example(Para *para);
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -34,6 +27,22 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
     Precondition pre;
     pre.preD = (double *)malloc(cells*sizeof(double));
     pre.pre_mat_val = (double *)malloc((cells + faces*2)*sizeof(double));
+
+    CRTS_init();
+
+    Slave_task ntask[64];
+    int len = cells / 64;
+	int rest = cells % 64;
+    for (int i = 0; i < 64; ++i) {
+        if (i < rest) {
+            ntask[i].col_num = len + 1;
+            ntask[i].col_start = i * (len + 1);
+        }
+        else {
+            ntask[i].col_num = len;
+            ntask[i].col_start = i * len + rest;
+        }
+    }
     
     //format transform
     CsrMatrix csr_matrix;
@@ -48,7 +57,7 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
         pcg.r[i] = source[i] - pcg.Ax[i];
     }
 	// calculate residual, scale
-    pcg.residual = pcg_gsumMag(pcg.r, cells);
+    pcg.residual = pcg_gsumMag_opt(pcg.r, cells, normfactor, tolerance, ntask);
     double init_residual = pcg.residual;
 	
     if(fabs(pcg.residual / normfactor) > tolerance ) {
@@ -64,9 +73,9 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
             } else {
                 pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
-                pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
+                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, ntask);
                 // tol_0= swap(r) * z
-                pcg.sumprod = pcg_gsumProd(pcg.r, pcg.z, cells);
+                pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // beta = tol_1 / tol_0 
                 // p = z + beta * p				 
                 pcg.beta = pcg.sumprod / pcg.sumprod_old;
@@ -76,31 +85,14 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
                     pcg.p[i] = pcg.z[i] + pcg.beta * pcg.p[i];
                 }*/
 				
-				// == 优化示例代码段 ==
-				static int isInit = 0;
-				if(isInit == 0){
-					//从核初始化
-					CRTS_init();
-					isInit = 1;
-				}
-				//参数定义并赋值
-				Para para;
-				para.p = pcg.p;
-				para.z = pcg.z;
-				para.beta = pcg.beta;
-				para.cells = cells;
-				//启动从核
-				athread_spawn(slave_example, &para);
-				//等待从核线程组终止
-				athread_join();
-				// == 优化示例代码段 ==
+                pcg_update_p_opt(pcg.p, pcg.z, pcg.beta, cells, ntask);
             }
 
             // Ax = A * p			 
             csr_spmv(csr_matrix, pcg.p, pcg.Ax);
 
             // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p) 
-            pcg.alpha = pcg.sumprod / pcg_gsumProd(pcg.p, pcg.Ax, cells);
+            pcg.alpha = pcg.sumprod / pcg_gsumProd_opt_pAx(pcg.p, pcg.Ax, cells, ntask);
 
             // x = x + alpha * p
             // r = r - alpha * Ax
@@ -110,7 +102,7 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double *source, double *x, int 
             }
 
             // tol_1 = swap(z) * r				 
-            pcg.residual = pcg_gsumMag(pcg.r, cells);
+            pcg.residual = pcg_gsumMag_opt(pcg.r, cells, normfactor, tolerance, ntask);
         } while( ++iter < maxIter  && (pcg.residual/normfactor) >= tolerance);
     }
     
