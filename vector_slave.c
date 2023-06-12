@@ -5,18 +5,18 @@
 
 #include "pcg_def.h"
 
-#define dataBufferSize 1408
 #define reduceBufferSize 64
 __thread_local crts_rply_t DMARply = 0;
 __thread_local unsigned int DMARplyCount = 0;
 __thread_local double reducebuf[reduceBufferSize] __attribute__((aligned(64)));
-__thread_local double p[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double z[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double M[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double r[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double g[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double Ax[dataBufferSize] __attribute__((aligned(64)));
-__thread_local double x[dataBufferSize] __attribute__((aligned(64)));
+// #define dataBufferSize 1408
+// __thread_local double p[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double z[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double M[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double r[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double g[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double Ax[dataBufferSize] __attribute__((aligned(64)));
+// __thread_local double x[dataBufferSize] __attribute__((aligned(64)));
 
 // --------------------------------------------------------------------------------
 
@@ -32,9 +32,11 @@ void MulAdd(MulAddPara *para) {
 
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
+    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double))
     //接收数组数据
-    CRTS_dma_iget(&p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -44,9 +46,12 @@ void MulAdd(MulAddPara *para) {
         p[i] = z[i] + beta * p[i];
     }
     //传回计算结果
-    CRTS_dma_iput(slavePara.p_k + addr, &p, len * sizeof(double), &DMARply);
+    CRTS_dma_iput(slavePara.p_k + addr, p, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    CRTS_pldm_free(p, len * sizeof(double));
+    CRTS_pldm_free(z, len * sizeof(double));
 }
 
 // --------------------------------------------------------------------------------
@@ -61,9 +66,12 @@ void Mul(MulPara *para) {
 
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
+    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
 
-    CRTS_dma_iget(&M, slavePara.m + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -71,9 +79,14 @@ void Mul(MulPara *para) {
         z[i] = M[i] * r[i];
     }
 
-    CRTS_dma_iput(slavePara.z_k1 + addr, &z, len * sizeof(double), &DMARply);
+    CRTS_dma_iput(slavePara.z_k1 + addr, z, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    CRTS_pldm_free(M, len * sizeof(double));
+    CRTS_pldm_free(r, len * sizeof(double));
+    CRTS_pldm_free(z, len * sizeof(double));
+    
 }
 
 // --------------------------------------------------------------------------------
@@ -88,10 +101,14 @@ void SubMul(SubMulPara *para) {
 
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
+    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *g = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
 
-    CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&g, slavePara.g + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(&M, slavePara.m + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(g, slavePara.g + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 3;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
@@ -99,9 +116,14 @@ void SubMul(SubMulPara *para) {
         z[i] = (r[i] - g[i]) * M[i];
     }
 
-    CRTS_dma_iput(slavePara.z_k1 + addr, &z, len * sizeof(double), &DMARply);
+    CRTS_dma_iput(slavePara.z_k1 + addr, z, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    CRTS_pldm_free(r, len * sizeof(double));
+    CRTS_pldm_free(g, len * sizeof(double));
+    CRTS_pldm_free(M, len * sizeof(double));
+    CRTS_pldm_free(z, len * sizeof(double));
 }
 
 // --------------------------------------------------------------------------------
@@ -117,6 +139,7 @@ void Reduce(ReducePara *para) {
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
 
+    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
@@ -138,7 +161,10 @@ void Reduce(ReducePara *para) {
         CRTS_dma_put(slavePara.result, &result, sizeof(int));
         CRTS_dma_put(slavePara.residual, &sum, sizeof(double));
     }
+    CRTS_pldm_free(r, len * sizeof(double)); 
 }
+
+// --------------------------------------------------------------------------------
 
 void MulReduceZR(MulReduceZRPara *para) {
     MulReduceZRPara slavePara;
@@ -151,6 +177,8 @@ void MulReduceZR(MulReduceZRPara *para) {
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
 
+    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
     CRTS_dma_iget(&r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
@@ -164,6 +192,8 @@ void MulReduceZR(MulReduceZRPara *para) {
     CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
     if (CRTS_tid == 0)
         CRTS_dma_put(slavePara.result, &sum, sizeof(double));
+    CRTS_pldm_free(r, len * sizeof(double)); 
+    CRTS_pldm_free(z, len * sizeof(double));
 }
 
 // --------------------------------------------------------------------------------
@@ -179,6 +209,8 @@ void MulReducepAx(MulReducepAxPara *para) {
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
 
+    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
     CRTS_dma_iget(&p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
@@ -192,6 +224,8 @@ void MulReducepAx(MulReducepAxPara *para) {
     CRTS_scoll_redurt(&sum, &local_sum, 1, CRTS_double, OP_add, &reducebuf, 64);
     if (CRTS_tid == 0)
         CRTS_dma_put(slavePara.result, &sum, sizeof(double));
+    CRTS_pldm_free(p, len * sizeof(double));
+    CRTS_pldm_free(Ax, len * sizeof(double));
 }
 
 // --------------------------------------------------------------------------------
@@ -208,6 +242,10 @@ void Updatexr(UpdatexrPara *para) {
     int addr = slavePara.task[id].col_start;
     int len = slavePara.task[id].col_num;
 
+    double *x = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
     CRTS_dma_iget(&x, slavePara.x + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&r, slavePara.r + addr, len * sizeof(double), &DMARply);
     CRTS_dma_iget(&p, slavePara.p + addr, len * sizeof(double), &DMARply);
@@ -224,4 +262,9 @@ void Updatexr(UpdatexrPara *para) {
     CRTS_dma_iput(slavePara.r + addr, &r, len * sizeof(double), &DMARply);
     DMARplyCount += 2;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    CRTS_pldm_free(x, len * sizeof(double));
+    CRTS_pldm_free(r, len * sizeof(double));
+    CRTS_pldm_free(p, len * sizeof(double));
+    CRTS_pldm_free(Ax, len * sizeof(double));
 }
