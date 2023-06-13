@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pcg_def.h"
-#include "slave_def.h"
+#include "vector_slave_def.h"
 
 void pcg_init_precondition_csr_opt(
     const CsrMatrix &csr_matrix,

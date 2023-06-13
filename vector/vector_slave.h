@@ -1,6 +1,6 @@
 #pragma once
 
-#include "slave_def.h"
+#include "vector_slave_def.h"
 
 //void MulAdd(MulAddPara *para);
 //void Mul(MulPara *para);
