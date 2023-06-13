@@ -126,6 +126,60 @@ PCGReturn pcg_solve(
     return pcg_return;
 }
 
+void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
+    csc_matrix.cols = ldu_matrix.cells;
+    csc_matrix.data_size = 2*ldu_matrix.faces + ldu_matrix.cells;
+    csc_matrix.col_off = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
+    csc_matrix.rows = (int *)malloc(csc_matrix.data_size*sizeof(int));
+    csc_matrix.data = (double *)malloc(csc_matrix.data_size*sizeof(double));
+
+    int row, col, offset;
+    int *tmp = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
+
+    csc_matrix.col_off[0] = 0;
+    for(int i = 1; i < csc_matrix.cols + 1; i++)
+        csc_matrix.col_off[i] = 1;
+
+    for(int i = 0; i < ldu_matrix.faces; i++){
+        row     = ldu_matrix.uPtr[i] ;
+        col = ldu_matrix.lPtr[i] ;
+        csc_matrix.col_off[row+1]++;
+        csc_matrix.col_off[col+1]++;
+    }
+
+    for(int i = 0;i< ldu_matrix.cells; i++){
+        csc_matrix.col_off[i+1] += csc_matrix.col_off[i];
+    }
+
+    memcpy(&tmp[0], &csc_matrix.col_off[0], (ldu_matrix.cells + 1)*sizeof(int));
+    // lower
+    for(int i = 0; i < ldu_matrix.faces; i++ ){
+        row = ldu_matrix.uPtr[i];
+        col = ldu_matrix.lPtr[i];
+        offset = tmp[col]++;
+        csc_matrix.rows[offset] = row;
+        csc_matrix.data[offset] = ldu_matrix.lower[i];
+    }
+
+    // diag
+    for(int i = 0; i < ldu_matrix.cells; i++){
+        offset = tmp[i]++;
+        csc_matrix.rows[offset] = i;
+        csc_matrix.data[offset] = ldu_matrix.diag[i];
+    }
+
+    // upper
+    for(int i = 0; i < ldu_matrix.faces; i++){
+        row = ldu_matrix.lPtr[i];
+        col = ldu_matrix.uPtr[i];
+        offset = tmp[col]++;
+        csc_matrix.rows[offset] = row;
+        csc_matrix.data[offset] = ldu_matrix.upper[i];
+    }
+
+    free(tmp);
+}
+
 void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
     csr_matrix.rows = ldu_matrix.cells;
     csr_matrix.data_size = 2 * ldu_matrix.faces + ldu_matrix.cells;
