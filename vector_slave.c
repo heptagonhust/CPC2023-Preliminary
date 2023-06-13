@@ -5,7 +5,6 @@
 
 #include "pcg_def.h"
 
-
 #define reduceBufferSize 64
 __thread_local crts_rply_t DMARply = 0;
 __thread_local unsigned int DMARplyCount = 0;

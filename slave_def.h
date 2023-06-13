@@ -66,7 +66,6 @@ typedef struct {
     Slave_task task[64];
 } UpdatexrPara;
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

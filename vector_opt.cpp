@@ -8,10 +8,9 @@
 
 #include <cstring>
 
+#include "pcg.h"
 #include "pcg_def.h"
 #include "slave_def.h"
-#include "pcg.h"
-
 
 void pcg_init_precondition_csr_opt(
     const CsrMatrix &csr_matrix,
@@ -176,8 +175,7 @@ void pcg_update_p_opt(
     para.p_k = p;
     para.z_k1 = z;
     para.beta_k = beta;
-    para.cells = cells,
-    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
+    para.cells = cells, memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(slave_MulAdd, &para);
     athread_join();
 }
