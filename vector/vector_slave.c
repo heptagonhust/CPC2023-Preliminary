@@ -156,7 +156,6 @@ void slave_MulSub(MulSubPara *para) {
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
-    CRTS_pldm_free(r, len * sizeof(double));
     CRTS_pldm_free(g, len * sizeof(double));
     CRTS_pldm_free(M, len * sizeof(double));
     CRTS_pldm_free(z, len * sizeof(double));

@@ -6,9 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vector/vector.h"
+#include "vector.h"
 #include "pcg_opt.h"
-#include "vector/vector_master.h"
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -72,9 +71,9 @@ PCGReturn pcg_solve(
             if (iter == 0) {
                 // z = M(-1) * r
                 // M: diagonal matrix of csr matrix A : diagonal preprocess
-                pcg_precondition_csr(csr_matrix, pre, pcg.r, pcg.z);
+                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, ntask);
                 // tol_0= swap(r) * z
-                pcg.sumprod = pcg_gsumProd(pcg.r, pcg.z, cells);
+                pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // iter ==0 ; p = z
                 memcpy(pcg.p, pcg.z, cells * sizeof(double));
             } else {
