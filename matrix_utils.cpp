@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdlib>
+#include <vector>
+
 #include "pcg_def.h"
 
 int count_ldu_matrix_nonzero_elements(const LduMatrix &ldu_matrix) {
