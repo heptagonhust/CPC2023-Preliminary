@@ -3,6 +3,6 @@
 
 #include "spmv_slave_def.h"
 
-extern void csc_spmv_slave(void *para);
+extern void slave_csc_spmv(void *para);
 
 #endif

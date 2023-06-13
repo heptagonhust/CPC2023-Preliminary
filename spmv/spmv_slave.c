@@ -14,7 +14,7 @@ __thread_local unsigned int DMARplyCount = 0;
 #define BUF_ITEM 1024
 __thread_local double redu_buf[BUF_ITEM] __attribute__((aligned(64)));
 
-void csc_spmv_slave(void *para) {
+void slave_csc_spmv(void *para) {
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para, sizeof(SpmvPara), &DMARply);
     int id = CRTS_tid;

@@ -1,5 +1,5 @@
-#ifndef _SPMV_SLAVE_DEF_H_
-#define _SPMV_SLAVE_DEF_H_
+#ifndef _SPMV_DEF_H_
+#define _SPMV_DEF_H_
 
 /// 在矩阵分块计算中，每个 block 和 vec 的一个 slice 相乘， block 的列数等于 slice 的行数
 /// 同一个 chunk 中的 block 与 slice 的计算结果并起来获得 chunk_result ：
