@@ -23,6 +23,7 @@ typedef struct {
     double *data;   // **这个** block 中的非零元素数组，数组大小为 nn0
     int *rows;      // **这个** block 中的每个非零元素的行号，数组大小为 nn0
     int *col_off;   // **这个** block 中每列第一个非零元素在 data 数组中的索引，数组大小为 col_num + 1
+    int total_size; // data, rows, col_off 数组占用内存的大小(byte)
 } CscBlock;
 
 /// 在矩阵分块计算中，每个 chunk 和 vec 的一个 slice 相乘， chunk 的列数等于 slice 的行数
@@ -51,7 +52,7 @@ typedef struct {
     int row_begin;
     int row_end;
     int block_num;
-    CscBlock blocks[];
+    CscBlock *blocks[];
 } CscChunk;
 
 /// 从核计算 spmv 时传递的参数，逻辑上包含了（结构上不直接包含）：

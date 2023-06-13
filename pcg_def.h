@@ -9,13 +9,13 @@
  * @data: 非零元素数组，大小为 data_size
  * @data_size: 非零元素的个数
  */
-struct CscMatrix {
+typedef struct {
     int cols;
     int data_size;
     int *col_off;
     int *rows;
     double *data;
-};
+} CscMatrix;
 
 /**
  * struct CsrMatrix - 压缩稀疏行矩阵
