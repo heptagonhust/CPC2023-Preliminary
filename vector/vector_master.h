@@ -39,3 +39,9 @@ void pcg_update_p_opt(
     int cells,
     Slave_task *ntask);
 
+void precond_update_g_opt(
+    double *g,
+    double *z_k1,
+    double *m,
+    int cells,
+    Slave_task *ntask);

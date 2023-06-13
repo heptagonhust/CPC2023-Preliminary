@@ -14,4 +14,5 @@ void pcg_precondition_csr_opt(
     const Precondition &pre,
     double *rAPtr,
     double *wAPtr,
+    double *M,
     Slave_task *ntask);

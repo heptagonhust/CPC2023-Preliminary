@@ -133,7 +133,24 @@ void pcg_update_p_opt(
     para.p_k = p;
     para.z_k1 = z;
     para.beta_k = beta;
-    para.cells = cells, memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
+    para.cells = cells;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
     athread_spawn(slave_MulAdd, &para);
+    athread_join();
+}
+
+void precond_update_g_opt(
+    double *g,
+    double *z_k1,
+    double *m,
+    int cells,
+    Slave_task *ntask) {
+    MulSubPara para;
+    para.g = g;
+    para.z_k1 = z_k1;
+    para.m = m;
+    para.cells = cells;
+    memcpy(&para.task, ntask, 64 * sizeof(Slave_task));
+    athread_spawn(slave_MulSub, &para);
     athread_join();
 }

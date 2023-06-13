@@ -34,6 +34,8 @@ PCGReturn pcg_solve(
     Precondition pre;
     pre.preD = (double *)malloc(cells * sizeof(double));
     pre.pre_mat_val = (double *)malloc((cells + faces * 2) * sizeof(double));
+    
+    double *M = (double *)malloc(cells * sizeof(double));
 
     CRTS_init();
 
@@ -54,7 +56,7 @@ PCGReturn pcg_solve(
     CsrMatrix csr_matrix;
     ldu_to_csr(ldu_matrix, csr_matrix);
 
-    pcg_init_precondition_csr(csr_matrix, pre);
+    pcg_init_precondition_csr(csr_matrix, pre, M);
 
     // AX = A * X
     csr_spmv(csr_matrix, x, pcg.Ax);
@@ -71,7 +73,7 @@ PCGReturn pcg_solve(
             if (iter == 0) {
                 // z = M(-1) * r
                 // M: diagonal matrix of csr matrix A : diagonal preprocess
-                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, ntask);
+                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, M, ntask);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // iter ==0 ; p = z
@@ -79,7 +81,7 @@ PCGReturn pcg_solve(
             } else {
                 pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
-                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, ntask);
+                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, M, ntask);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // beta = tol_1 / tol_0
@@ -272,7 +274,7 @@ void csr_precondition_spmv(
 // pre_mat_val: 非对角元     : csr_matrix中元素
 //              对角元素     : 0
 // preD       : csr_matrix中对角元素的倒数
-void pcg_init_precondition_csr(const CsrMatrix &csr_matrix, Precondition &pre) {
+void pcg_init_precondition_csr(const CsrMatrix &csr_matrix, Precondition &pre, double *M) {
     for (int i = 0; i < csr_matrix.rows; i++) {
         for (int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i + 1];
              j++) {
@@ -280,6 +282,7 @@ void pcg_init_precondition_csr(const CsrMatrix &csr_matrix, Precondition &pre) {
             if (csr_matrix.cols[j] == i) {
                 pre.pre_mat_val[j] = 0.;
                 pre.preD[i] = 1.0 / csr_matrix.data[j];
+                M[i] = csr_matrix.data[j];
             } else {
                 pre.pre_mat_val[j] = csr_matrix.data[j];
             }
@@ -292,13 +295,16 @@ void pcg_precondition_csr_opt(
     const Precondition &pre,
     double *rAPtr,
     double *wAPtr,
+    double *M,
     Slave_task *ntask) {
     v_dot_product_opt(csr_matrix.rows, pre.preD, rAPtr, wAPtr, ntask);
     double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
     memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
         // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
-        csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
+        // csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
+        csr_spmv(csr_matrix, wAPtr, gAPtr);
+        precond_update_g_opt(gAPtr, wAPtr, M, csr_matrix.rows, ntask);
         v_sub_dot_product_opt(
             csr_matrix.rows,
             rAPtr,
