@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vector_opt.h"
+#include "vector/vector.h"
+#include "pcg_opt.h"
+#include "vector/vector_master.h"
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -267,27 +269,6 @@ void csr_precondition_spmv(
     }
 }
 
-void v_dot_product(
-    const int nCells,
-    const double *vec1,
-    const double *vec2,
-    double *result) {
-    for (int cell = 0; cell < nCells; cell++) {
-        result[cell] = vec1[cell] * vec2[cell];
-    }
-}
-
-void v_sub_dot_product(
-    const int nCells,
-    const double *sub,
-    const double *subed,
-    const double *vec,
-    double *result) {
-    for (int cell = 0; cell < nCells; cell++) {
-        result[cell] = (sub[cell] - subed[cell]) * vec[cell];
-    }
-}
-
 // diagonal precondition, get matrix M^(-1) (diagonal matrix)
 // pre_mat_val: 非对角元     : csr_matrix中元素
 //              对角元素     : 0
@@ -307,42 +288,28 @@ void pcg_init_precondition_csr(const CsrMatrix &csr_matrix, Precondition &pre) {
     }
 }
 
-// ? 存疑，循环用处?
-void pcg_precondition_csr(
+void pcg_precondition_csr_opt(
     const CsrMatrix &csr_matrix,
     const Precondition &pre,
     double *rAPtr,
-    double *wAPtr) {
+    double *wAPtr,
+    Slave_task *ntask) {
+    v_dot_product_opt(csr_matrix.rows, pre.preD, rAPtr, wAPtr, ntask);
     double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
-    v_dot_product(csr_matrix.rows, pre.preD, rAPtr, wAPtr);
     memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
         // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
         csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
-        v_sub_dot_product(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr);
+        v_sub_dot_product_opt(
+            csr_matrix.rows,
+            rAPtr,
+            gAPtr,
+            pre.preD,
+            wAPtr,
+            ntask);
         memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     }
     free(gAPtr);
-}
-
-// reduce
-// 规约操作，需要核间通信
-double pcg_gsumMag(double *r, int size) {
-    double ret = .0;
-    for (int i = 0; i < size; i++) {
-        ret += fabs(r[i]);
-    }
-    return ret;
-}
-
-// multiply and reduce : vector inner product
-// 逐元素与规约操作，需要核间通信
-double pcg_gsumProd(double *z, double *r, int size) {
-    double ret = .0;
-    for (int i = 0; i < size; i++) {
-        ret += z[i] * r[i];
-    }
-    return ret;
 }
 
 void free_pcg(PCG &pcg) {

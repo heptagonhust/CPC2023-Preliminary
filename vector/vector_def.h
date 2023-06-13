@@ -31,6 +31,14 @@ typedef struct {
 } SubMulPara;
 
 typedef struct {
+    double *g;
+    double *z_k1;
+    double *m;
+    int cells;
+    Slave_task task[64];
+} MulSubPara;
+
+typedef struct {
     double *r_k1;
     int cells;
     double normfactor;
@@ -69,14 +77,28 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
+    //! vec1 = vec0 + scalar * vec1
+    void slave_MulAdd(MulAddPara *para);
 
-void slave_MulAdd(MulAddPara *para);
-void slave_Mul(MulPara *para);
-void slave_SubMul(SubMulPara *para);
-void slave_Reduce(ReducePara *para);
-void slave_MulReduceZR(MulReduceZRPara *para);
-void slave_MulReducepAx(MulReducepAxPara *para);
-void slave_Updatexr(UpdatexrPara *para);
+    //! result[i] = vec0[i] * vec1[i]
+    void slave_Mul(MulPara *para);
+
+    //! result[i] = (vec0[i] - vec1[i]) * vec2[i]
+    void slave_SubMul(SubMulPara *para);
+
+    //! vec0[i] = vec0[i] - vec1[i] * vec2[i]
+    void slave_MulSub(MulSubPara *para);
+
+    //! result += abs(vec[i])
+    void slave_Reduce(ReducePara *para);
+
+    //! result += vec0[i] * vec1[i]
+    void slave_MulReduceZR(MulReduceZRPara *para);
+
+    //! result += vec2[i] * vec3[i]
+    void slave_MulReducepAx(MulReducepAxPara *para);
+
+    void slave_Updatexr(UpdatexrPara *para);
 
 #ifdef __cplusplus
 }

@@ -4,6 +4,7 @@
 #include <slave.h>
 
 #include "pcg_def.h"
+#include "vector_def.h"
 
 #define reduceBufferSize 64
 __thread_local crts_rply_t DMARply = 0;
@@ -116,6 +117,42 @@ void slave_SubMul(SubMulPara *para) {
     }
 
     CRTS_dma_iput(slavePara.z_k1 + addr, z, len * sizeof(double), &DMARply);
+    DMARplyCount++;
+    CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    CRTS_pldm_free(r, len * sizeof(double));
+    CRTS_pldm_free(g, len * sizeof(double));
+    CRTS_pldm_free(M, len * sizeof(double));
+    CRTS_pldm_free(z, len * sizeof(double));
+}
+
+// --------------------------------------------------------------------------------
+
+void slave_MulSub(MulSubPara *para) {
+    MulSubPara slavePara;
+    CRTS_dma_iget(&slavePara, para, sizeof(MulSubPara), &DMARply);
+    DMARplyCount++;
+    CRTS_dma_wait_value(&DMARply, DMARplyCount);
+    int cells = slavePara.cells;
+    int id = CRTS_tid;
+
+    int addr = slavePara.task[id].col_start;
+    int len = slavePara.task[id].col_num;
+    double *g = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
+    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
+
+    CRTS_dma_iget(g, slavePara.g + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
+    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
+    DMARplyCount += 3;
+    CRTS_dma_wait_value(&DMARply, DMARplyCount);
+
+    for (int i = 0; i < len; ++i) {
+        g[i] = g[i] - z[i] * M[i];
+    }
+
+    CRTS_dma_iput(slavePara.g + addr, g, len * sizeof(double), &DMARply);
     DMARplyCount++;
     CRTS_dma_wait_value(&DMARply, DMARplyCount);
 
