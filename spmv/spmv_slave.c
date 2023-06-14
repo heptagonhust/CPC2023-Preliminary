@@ -50,20 +50,20 @@ void slave_csc_spmv(void *para) {
 
     // 将所需要的 chunk 读入
     int size;
-    DMA_GET(&size, chunk_ptr, sizeof(int), &get_rply, get_cnt);
-    CscChunk *chunk = CRTS_pldm_malloc(size);
+    DMA_GET(&size, &((CscChunk *)chunk_ptr)->size, sizeof(int), &get_rply, get_cnt);
+    CscChunk *chunk = (CscChunk *)CRTS_pldm_malloc(size);
     DMA_GET(chunk, chunk_ptr, size, &get_rply, get_cnt);
     int block_num = chunk->block_num;
 
     // 一次性读入所有的 blocks
-    CscBlock *blocks = CRTS_pldm_malloc(sizeof(CscBlock) * block_num);
+    CscBlock *blocks = (CscBlock *)CRTS_pldm_malloc(sizeof(CscBlock) * block_num);
     for (int i = 0; i < block_num; ++i) {
         CscBlock *block_ptr = chunk->blocks[i];
         CscBlock *b = blocks + i;
         DMA_GET(b, block_ptr, sizeof(CscBlock), &get_rply, get_cnt);
         int data_size = b->data_size;
         int total_size = b->total_size;
-        double *buffer = CRTS_pldm_malloc(total_size);
+        double *buffer = (double *)CRTS_pldm_malloc(total_size);
         b->data = (double *)buffer;
         b->rows = (int *)(b->data + data_size);
         b->col_off = b->rows + data_size;
@@ -74,7 +74,7 @@ void slave_csc_spmv(void *para) {
     int col_begin = chunk->col_begin;
     int col_end = chunk->col_end;
     int slice_size = col_end - col_begin;
-    double *slice = CRTS_pldm_malloc(slice_size);
+    double *slice = (double *)CRTS_pldm_malloc(slice_size);
     DMA_GET(slice, vec + col_begin, slice_size, &get_rply, get_cnt);
 
     DoubleBuffering double_buff;
