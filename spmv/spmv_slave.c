@@ -1,5 +1,6 @@
 #include "spmv_slave.h"
 #include "crts.h"
+#include "slave_def.h"
 #include "spmv/spmv_def.h"
 
 __thread_local crts_rply_t get_rply = 0;
@@ -36,17 +37,16 @@ void slave_csc_spmv(void *para) {
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para, sizeof(SpmvPara), &get_rply, get_cnt);
     int id = CRTS_tid;
+    int *dma_over = spmv_para.dma_over + id;
+    double **result_ptr = spmv_para.result + id;
+    double *result;
+    DMA_GET(&result, result_ptr, sizeof(double *), &get_rply, get_cnt);
 
     int col = spmv_para.sp_col;
     int row = spmv_para.sp_row;
 
     // 获取所需要的 chunk 在主存中的地址
-    CscChunk **chunk_array_ptr = spmv_para.chunks;
-    int chunk_num = spmv_para.chunk_num;
-    CscChunk **chunk_array = CRTS_pldm_malloc(sizeof(CscChunk *) * chunk_num);
-    DMA_GET(chunk_array, chunk_array_ptr, sizeof(CscChunk *) * chunk_num, &get_rply, get_cnt);
-    CscChunk *chunk_ptr = chunk_array[id];
-    CRTS_pldm_free(chunk_array, sizeof(CscChunk *) * chunk_num);
+    CscChunk **chunk_ptr = spmv_para.chunks + id;
 
     // 将所需要的 chunk 读入
     int size;
@@ -78,6 +78,7 @@ void slave_csc_spmv(void *para) {
     DMA_GET(slice, vec + col_begin, slice_size, &get_rply, get_cnt);
 
     DoubleBuffering double_buff;
+    double *block_result_ptr = result;
     for (int i = 0; i < block_num; ++i) {
         CscBlock *block = blocks + i;
         int col_num = block->col_num;
@@ -104,17 +105,13 @@ void slave_csc_spmv(void *para) {
         }
 
         DMA_WAIT(&put_rply, put_cnt);
-        DMA_IPUT(block_result, block_result, sizeof(double) * (col_num), &put_rply, put_cnt);
+        DMA_IPUT(block_result_ptr, block_result, sizeof(double) * (col_num), &put_rply, put_cnt);
+        DMA_IPUT(dma_over, &i, sizeof(int), &put_rply, put_cnt);
+
+        block_result_ptr += col_num;
     }
 
     slave_double_buffering_free(&double_buff);
-
-    // TODO: 对结果的操作
-    // // slave core 0 将结果写回主存
-    // if (id == 0) {
-    //     double *result = spmv_para.result;
-    //     DMA_PUT(result, chunk_result, sizeof(double) * row, &get_rply);
-    // }
 
     for (int i = 0; i < block_num; ++i) {
         int total_size = blocks->total_size;
