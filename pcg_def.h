@@ -1,6 +1,20 @@
 #ifndef _PCG_DEF_H_
 #define _PCG_DEF_H_
 
+#include "spmv_slave_def.h"
+
+typedef struct {
+    int col_begin;
+    int col_num;
+    int size;
+} CscChunkRange;
+
+typedef struct {
+    int chunk_num;
+    CscChunkRange *chunk_ranges;
+    CscChunk **chunks;
+} SplitedCscMatrix;
+
 /**
  * struct CscMatrix - 压缩稀疏列矩阵
  * @cols: 列数
