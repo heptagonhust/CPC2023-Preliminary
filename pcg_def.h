@@ -1,7 +1,7 @@
 #ifndef _PCG_DEF_H_
 #define _PCG_DEF_H_
 
-#include "spmv_slave_def.h"
+#include "spmv_def.h"
 
 typedef struct {
     int col_begin;

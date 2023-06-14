@@ -8,12 +8,9 @@
 
 typedef struct {
     void *buff[2];
-    int size[2];
+    int size;
     int in_use;
 } DoubleBuffering;
-
-extern void *slave_double_buffering_get(DoubleBuffering *buff, int size);
-extern void slave_double_buffering_free(DoubleBuffering *buff);
 
 extern void slave_csc_spmv(void *para);
 

@@ -6,7 +6,7 @@
 
 #include "matrix_utils.cpp"
 #include "pcg.h"
-#include "spmv_slave_def.h"
+#include "spmv_def.h"
 
 /**
  * csc_matrix_sort_elements() - 对 CscMatrix 中的元素排序，使每列中的元素的行号都单调递增。

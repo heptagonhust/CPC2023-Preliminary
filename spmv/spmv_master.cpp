@@ -17,14 +17,40 @@ void csc_spmv(SpmvPara *para, double *result) {
             }
         }
         // 开始规约
-        CscBlock *block = chunk0->blocks[i];
+        CscBlock *block = chunk0->blocks + i;
         int row_begin = block->row_begin;
         int row_num = block->row_end - row_begin;
-        for (int j = 0; j < row_num; ++j) {
+        for (int j = 0; j < row_num; ++j, ++result) {
             for (int k = 0; k < chunk_num; ++k, ++result_pool) {
                 *result += *result_pool;
             }
-            result += 1;
         }
     }
+}
+
+void splited_csc_matrix_to_spmv_para(const SplitedCscMatrix *mat, SpmvPara *para, int row_num, int col_num) {
+    int chunk_num = mat->chunk_num;
+    para->chunk_num = chunk_num;
+    para->chunks = mat->chunks;
+    CscChunk *chunk0 = mat->chunks[0];
+    para->result = (double *)malloc(sizeof(double) * chunk_num * row_num);
+    para->dma_over = (int *)malloc(sizeof(int) * chunk_num);
+    memset(para->dma_over, 0, sizeof(int) * chunk_num);
+    para->sp_col = col_num;
+    para->sp_row = row_num;
+    int max_block_row_num = 0;
+    for (int i = 0; i < chunk0->block_num; ++i) {
+        CscBlock *b = chunk0->blocks + i;
+        row_num = b->row_end - b->row_begin;
+        if (row_num > max_block_row_num) {
+            max_block_row_num = row_num;
+        }
+    }
+    para->max_block_row_num = max_block_row_num;
+}
+
+void spmv_para_free(SpmvPara *para) {
+    free(para->dma_over);
+    free(para->result);
+    // TODO: free other parts
 }

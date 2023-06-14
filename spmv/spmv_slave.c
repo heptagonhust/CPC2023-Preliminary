@@ -9,28 +9,43 @@ __thread_local unsigned int get_cnt = 0;
 __thread_local crts_rply_t put_rply = 0;
 __thread_local unsigned int put_cnt = 0;
 
-#define BUF_ITEM 1024
-__thread_local double redu_buf[BUF_ITEM] __attribute__((aligned(64)));
-
-void slave_double_buffering_free(DoubleBuffering *buff) {
-    for (int i = 0; i < 2; ++i) {
-        void *b = buff->buff[i];
-        int s = buff->size[i];
-        if (s) {
-            CRTS_pldm_free(b, s);
-        }
-    }
+inline static void slave_double_buffering_new(DoubleBuffering *buff, int size) {
+    buff->size = size;
+    void *tmp = CRTS_pldm_malloc(size * 2);
+    buff->buff[0] = tmp;
+    buff->buff[1] = buff->buff[0] + size;
+    buff->in_use = 1;
 }
 
-void *slave_double_buffering_get(DoubleBuffering *buff, int size) {
+inline static void slave_double_buffering_free(DoubleBuffering *buff) {
+    CRTS_pldm_free(buff->buff, buff->size * 2);
+}
+
+inline static void *slave_double_buffering_get(DoubleBuffering *buff, int size) {
     int should_use = !buff->in_use;
-    if (buff->size[should_use] < size) {
-        CRTS_pldm_free(buff->buff[should_use], buff->size[should_use]);
-        buff->buff[should_use] = CRTS_pldm_malloc(size);
-        buff->size[should_use] = size;
-    }
     buff->in_use = should_use;
     return buff->buff[should_use];
+}
+
+static void slave_csc_chunk_unpack(CscChunk *chunk) {
+    int meta_seg_num = 2;
+    int *meta_seg = (int *)chunk->packed_data.mem;
+    int *rows_seg = (int *)chunk->packed_data.mem + meta_seg_num;
+    int *col_off_seg = (int *)chunk->packed_data.mem + meta_seg[0];
+    double *data_seg = (double *)chunk->packed_data.mem + meta_seg[1];
+
+    for (int i = 0; i < chunk->block_num; ++i) {
+        CscBlock *block = chunk->blocks + i;
+
+        block->rows = rows_seg;
+        rows_seg += block->data_size;
+
+        block->data = data_seg;
+        data_seg += block->data_size;
+
+        block->col_off = col_off_seg;
+        col_off_seg += block->col_num + 1;
+    }
 }
 
 void slave_csc_spmv(void *para) {
@@ -54,19 +69,12 @@ void slave_csc_spmv(void *para) {
     DMA_GET(chunk, chunk_ptr, size, &get_rply, get_cnt);
     int block_num = chunk->block_num;
 
-    // 一次性读入所有的 blocks
-    CscBlock *blocks = (CscBlock *)CRTS_pldm_malloc(sizeof(CscBlock) * block_num);
-    for (int i = 0; i < block_num; ++i) {
-        CscBlock *block_ptr = chunk->blocks[i];
-        CscBlock *b = blocks + i;
-        DMA_GET(b, block_ptr, sizeof(CscBlock), &get_rply, get_cnt);
-        int data_size = b->data_size;
-        int total_size = b->total_size;
-        double *buffer = (double *)CRTS_pldm_malloc(total_size);
-        b->data = (double *)buffer;
-        b->rows = (int *)(b->data + data_size);
-        b->col_off = b->rows + data_size;
-    }
+    void *mem = CRTS_pldm_malloc(chunk->packed_data.mem_size);
+    DMA_GET(mem, chunk->packed_data.mem, chunk->packed_data.mem_size, &get_rply, get_cnt);
+    chunk->packed_data.mem = mem;
+    slave_csc_chunk_unpack(chunk);
+
+    CscBlock *blocks = chunk->blocks;
 
     // 获取该 chunk 对应 vec 的 slice
     double *vec = chunk->vec;
@@ -77,19 +85,25 @@ void slave_csc_spmv(void *para) {
     DMA_GET(slice, vec + col_begin, slice_size, &get_rply, get_cnt);
 
     DoubleBuffering double_buff;
+    slave_double_buffering_new(&double_buff, sizeof(double) * spmv_para.max_block_row_num);
     double *block_result_ptr = result + id;
     for (int i = 0; i < block_num; ++i) {
         CscBlock *block = blocks + i;
         int col_num = block->col_num;
+        int row_num = block->row_end - block->row_begin;
         int data_size = block->data_size;
         int *rows = block->rows;
         int *col_off = block->col_off;
         double *data = block->data;
 
-        int result_size = sizeof(double) * col_num;
+        int result_size = sizeof(double) * row_num;
 
-        // 双缓冲并每次比较一下，减少分配次数
         double *block_result = slave_double_buffering_get(&double_buff, result_size);
+
+        // TODO: I need memset!!!
+        for (int j = 0; j < row_num; ++j) {
+            block_result[j] = .0;
+        }
 
         // block 与 slice 的 spmv
         for (int j = 0; j < col_num; ++j) {
@@ -98,17 +112,16 @@ void slave_csc_spmv(void *para) {
             int num = end - start;
             double tmp = 0.;
             for (int k = 0; k < num; ++k) {
-                tmp += slice[rows[start + k]] * data[start + k];
+                block_result[rows[start + k]] += slice[j] * data[start + k];
             }
-            block_result[j] = tmp;
         }
 
         int last = i - 1;
-        DMA_IPUT(dma_over, &last, sizeof(int), &put_rply, put_cnt);
         DMA_WAIT(&put_rply, put_cnt);
-        DMA_IPUT_STRIDE(block_result_ptr, block_result, sizeof(double) * col_num, sizeof(double), sizeof(double) * chunk_num, &put_rply, put_cnt);
+        DMA_IPUT(dma_over, &last, sizeof(int), &put_rply, put_cnt);
+        DMA_IPUT_STRIDE(block_result_ptr, block_result, sizeof(double) * row_num, sizeof(double), sizeof(double) * chunk_num, &put_rply, put_cnt);
 
-        block_result_ptr += col_num * chunk_num;
+        block_result_ptr += row_num * chunk_num;
     }
 
     int last = chunk_num - 1;
