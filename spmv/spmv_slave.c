@@ -37,10 +37,9 @@ void slave_csc_spmv(void *para) {
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para, sizeof(SpmvPara), &get_rply, get_cnt);
     int id = CRTS_tid;
+    int chunk_num = spmv_para.chunk_num;
     int *dma_over = spmv_para.dma_over + id;
-    double **result_ptr = spmv_para.result + id;
-    double *result;
-    DMA_GET(&result, result_ptr, sizeof(double *), &get_rply, get_cnt);
+    double *result = spmv_para.result;
 
     int col = spmv_para.sp_col;
     int row = spmv_para.sp_row;
@@ -78,7 +77,7 @@ void slave_csc_spmv(void *para) {
     DMA_GET(slice, vec + col_begin, slice_size, &get_rply, get_cnt);
 
     DoubleBuffering double_buff;
-    double *block_result_ptr = result;
+    double *block_result_ptr = result + id;
     for (int i = 0; i < block_num; ++i) {
         CscBlock *block = blocks + i;
         int col_num = block->col_num;
@@ -105,10 +104,10 @@ void slave_csc_spmv(void *para) {
         }
 
         DMA_WAIT(&put_rply, put_cnt);
-        DMA_IPUT(block_result_ptr, block_result, sizeof(double) * (col_num), &put_rply, put_cnt);
+        DMA_IPUT_STRIDE(block_result_ptr, block_result, sizeof(double) * col_num, sizeof(double), sizeof(double) * chunk_num, &put_rply, put_cnt);
         DMA_IPUT(dma_over, &i, sizeof(int), &put_rply, put_cnt);
 
-        block_result_ptr += col_num;
+        block_result_ptr += col_num * chunk_num;
     }
 
     slave_double_buffering_free(&double_buff);

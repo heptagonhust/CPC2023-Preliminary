@@ -22,6 +22,10 @@
     CRTS_dma_iput(dst, src, len, rply); \
     cnt++;
 
+#define DMA_IPUT_STRIDE(dst, src, len, bsize, stride, rply, cnt) \
+    CRTS_dma_iput_stride(dst, src, len, bsize, stride, rply); \
+    cnt++;
+
 /// 阻塞 DMA 写
 #define DMA_PUT(dst, src, len, rply, cnt) \
     CRTS_dma_iput(dst, src, len, rply); \
