@@ -392,6 +392,73 @@ void build_single_chunk(
     }
 }
 
+void csc_chunk_pack(CscChunk &chunk) {
+    int meta_seg_num = 2;
+    int rows_seg_num = 0;
+    int col_off_seg_num = 0;
+    int data_seg_num = 0;
+
+    for (int i = 0; i < chunk.block_num; ++i) {
+        CscBlock &block = chunk.blocks[i];
+        data_seg_num += block.data_size;
+        col_off_seg_num += block.col_num + 1;
+        rows_seg_num += block.data_size;
+    }
+
+    int int_num = meta_seg_num + col_off_seg_num + rows_seg_num;
+    int double_num = data_seg_num;
+    chunk.packed_data.mem_size =
+        sizeof(double) * (double_num + (int_num + 1) / 2);
+    chunk.packed_data.mem = malloc(chunk.packed_data.mem_size);
+
+    int *int_mem = (int *)chunk.packed_data.mem;
+    double *double_mem = ((double *)chunk.packed_data.mem) + (int_num + 1) / 2;
+
+    int *meta_seg = int_mem;
+    meta_seg[0] = meta_seg_num + rows_seg_num;
+    meta_seg[1] = double_mem - (double *)chunk.packed_data.mem;
+
+    int *rows_seg = (int *)chunk.packed_data.mem + meta_seg_num;
+    int *col_off_seg = (int *)chunk.packed_data.mem + meta_seg[0];
+    double *data_seg = (double *)chunk.packed_data.mem + meta_seg[1];
+
+    for (int i = 0; i < chunk.block_num; ++i) {
+        CscBlock &block = chunk.blocks[i];
+
+        memcpy(rows_seg, block.rows, sizeof(int) * block.data_size);
+        rows_seg += block.data_size;
+        memcpy(data_seg, block.data, sizeof(double) * block.data_size);
+        data_seg += block.data_size;
+        memcpy(col_off_seg, block.col_off, sizeof(int) * (block.col_num + 1));
+        col_off_seg += block.col_num + 1;
+
+        free(block.rows);
+        free(block.data);
+        free(block.col_off);
+    }
+}
+
+void csc_chunk_unpack(CscChunk &chunk) {
+    int meta_seg_num = 2;
+    int *meta_seg = (int *)chunk.packed_data.mem;
+    int *rows_seg = (int *)chunk.packed_data.mem + meta_seg_num;
+    int *col_off_seg = (int *)chunk.packed_data.mem + meta_seg[0];
+    double *data_seg = (double *)chunk.packed_data.mem + meta_seg[1];
+
+    for (int i = 0; i < chunk.block_num; ++i) {
+        CscBlock &block = chunk.blocks[i];
+
+        block.rows = rows_seg;
+        rows_seg += block.data_size;
+
+        block.data = data_seg;
+        data_seg += block.data_size;
+
+        block.col_off = col_off_seg;
+        col_off_seg += block.col_num + 1;
+    }
+}
+
 /**
  * vaaandark 想看的东西
  */
