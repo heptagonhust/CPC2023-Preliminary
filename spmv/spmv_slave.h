@@ -13,6 +13,6 @@ typedef struct {
     int in_use;
 } DoubleBuffering;
 
-extern void slave_csc_spmv(void *para);
+void slave_csc_spmv(SpmvPara *para_mp);
 
 #endif
