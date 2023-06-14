@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdlib>
 #include <vector>
 
@@ -113,6 +114,55 @@ std::vector<double> plain_matrix_from_csr(const CsrMatrix &csr_matrix) {
         }
     }
 
+    return result;
+}
+
+std::vector<double>
+plain_matrix_from_splited_csc_matrix(const SplitedCscMatrix &splited_matrix) {
+    struct Element {
+        int row, column;
+        double value;
+
+        bool operator<(const Element &another) {
+            if (row == another.row) {
+                return column < another.column;
+            }
+            return row < another.row;
+        }
+    };
+    std::vector<Element> tmp;
+    for (int i = 0; i < splited_matrix.chunk_num; ++i) {
+        CscChunk &chunk = *(splited_matrix.chunks[i]);
+        for (int j = 0; j < chunk.block_num; ++j) {
+            CscBlock &block = chunk.blocks[j];
+            for (int k = 0; k < block.col_num; ++k) {
+                for (int u = block.row_begin; u < block.row_end; ++u) {
+                    int idx = -1;
+                    for (int v = block.col_off[k]; v < block.col_off[k + 1];
+                         ++v) {
+                        if (block.rows[v] + block.row_begin == u) {
+                            idx = v;
+                            break;
+                        }
+                    }
+                    Element element;
+                    element.row = u;
+                    element.column = chunk.col_begin + k;
+                    if (idx == -1) {
+                        element.value = 0.0;
+                    } else {
+                        element.value = block.data[idx];
+                    }
+                    tmp.push_back(element);
+                }
+            }
+        }
+    }
+    std::sort(tmp.begin(), tmp.end());
+    std::vector<double> result;
+    for (auto i : tmp) {
+        result.push_back(i.value);
+    }
     return result;
 }
 

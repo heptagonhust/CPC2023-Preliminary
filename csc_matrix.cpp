@@ -10,7 +10,7 @@
 
 /**
  * csc_matrix_sort_elements() - 对 CscMatrix 中的元素排序，使每列中的元素的行号都单调递增。
- * 
+ *
  * @mtx: 待排序的 CscMatrix
  */
 void csc_matrix_sort_elements(CscMatrix &mtx) {
@@ -195,10 +195,10 @@ void free_csc_matrix(CscMatrix &mtx) {
 
 /**
  * csc_matrix_chunk_num() - 计算给定矩阵按照每个 chunk 大小不超过 max_chunk_size 的限制条件切分时，得到的 chunk 数量。
- * 
+ *
  * @mtx: 待切分矩阵。
  * @max_chunk_size: chunk 大小的最大值限制。
- * 
+ *
  * Return: chunk 数量。
  *         若不存在一种切分方式满足每个 chunk 大小不超过 max_chunk_size 的限制，则返回 0x3f3f3f3f。
  */
@@ -223,10 +223,10 @@ int csc_matrix_chunk_num(const CscMatrix &mtx, int max_chunk_size) {
 
 /**
  * csc_matrix_chunk_size() - 计算将给定矩阵尽可能均匀切分为若干个 chunk 时，切分后最大的 chunk 的大小。
- * 
+ *
  * @mtx: 待切分矩阵。
  * @chunk_num: 需要切分得到的 chunk 的数量。
- * 
+ *
  * Return: 切分后最大的 chunk 的大小
  */
 int csc_matrix_chunk_size(const CscMatrix &mtx, int chunk_num) {
@@ -243,25 +243,14 @@ int csc_matrix_chunk_size(const CscMatrix &mtx, int chunk_num) {
     return l;
 }
 
-typedef struct {
-    int col_begin;
-    int col_num;
-    int size;
-} CscChunkRange;
-
-typedef struct {
-    int chunk_num;
-    CscChunkRange *chunk_ranges;
-    CscChunk **chunks;
-} SplitedCscMatrix;
-
 /**
  * pjz 想看的东西
  */
 void split_csc_matrix_get_chunk_ranges(
     const CscMatrix &mtx,
     SplitedCscMatrix &result,
-    int max_chunk_size) {
+    int max_chunk_size,
+    int chunk_num) {
     int i, current_chunk_size, current_chunk_begin, current_chunk_idx;
     for (i = 0,
         current_chunk_size = 0,
@@ -269,12 +258,13 @@ void split_csc_matrix_get_chunk_ranges(
         current_chunk_idx = 0;
          i < mtx.cols;
          ++i) {
-        if (current_chunk_size + COL_SIZE(i) > max_chunk_size
-            || i == mtx.cols - 1) {
-            result.chunk_ranges[i].col_begin = current_chunk_begin;
-            result.chunk_ranges[i].col_num =
-                current_chunk_idx - current_chunk_begin;
-            result.chunk_ranges[i].size = current_chunk_size;
+        if (current_chunk_size + COL_SIZE(i) > max_chunk_size) {
+            result.chunk_ranges[current_chunk_idx].col_begin =
+                current_chunk_begin;
+
+            result.chunk_ranges[current_chunk_idx].col_num =
+                i - current_chunk_begin;
+            result.chunk_ranges[current_chunk_idx].size = current_chunk_size;
 
             current_chunk_size = 0;
             current_chunk_begin = i;
@@ -282,6 +272,24 @@ void split_csc_matrix_get_chunk_ranges(
         }
 
         current_chunk_size += COL_SIZE(i);
+    }
+
+    if (current_chunk_idx < chunk_num) {
+        result.chunk_ranges[current_chunk_idx].col_begin = current_chunk_begin;
+        result.chunk_ranges[current_chunk_idx].col_num =
+            i - current_chunk_begin;
+        result.chunk_ranges[current_chunk_idx].size = current_chunk_size;
+
+        current_chunk_size = 0;
+        current_chunk_begin = i;
+        current_chunk_idx += 1;
+    }
+
+    while (current_chunk_idx < chunk_num) {
+        result.chunk_ranges[current_chunk_idx].col_begin = mtx.cols;
+        result.chunk_ranges[current_chunk_idx].col_num = 0;
+        result.chunk_ranges[current_chunk_idx].size = 0;
+        current_chunk_idx += 1;
     }
 }
 
@@ -315,6 +323,10 @@ void build_single_chunk(
         for (int j = 0; j <= result->blocks[i].col_num; ++j) {
             result->blocks[i].col_off[j] = 0;
         }
+    }
+
+    if (ranges[result_chunk_idx].col_num == 0) {
+        return;
     }
 
     for (int i = result->col_begin; i < result->col_end; ++i) {
@@ -354,14 +366,15 @@ void build_single_chunk(
     for (int i = result->col_begin; i < result->col_end; ++i) {
         for (int j = mtx.col_off[i]; j < mtx.col_off[i + 1]; ++j) {
             int row = mtx.rows[j];
-            double data = mtx.rows[j];
+            double data = mtx.data[j];
             for (int k = 0; k < block_num; ++k) {
                 if (result->blocks[k].row_begin <= row
                     && row < result->blocks[k].row_end) {
                     int &col_off =
                         result->blocks[k].col_off[i - result->col_begin];
                     result->blocks[k].data[col_off] = data;
-                    result->blocks[k].rows[col_off] = row;
+                    result->blocks[k].rows[col_off] =
+                        row - result->blocks[k].row_begin;
                     col_off += 1;
                     break;
                 }
@@ -399,11 +412,11 @@ void split_csc_matrix_build_chunks(
 
 /**
  * split_csc_matrix() - 将给定的 CscMatrix 尽可能均匀地切分成若干个 chunk
- * 
+ *
  * @mtx: 待切分矩阵
  * @slice_num: 需要切分出来的 chunk 数量。
  * @vec: 将要被乘的向量
- * 
+ *
  * Return: 数组。里面包含了 slice_num 个指针，指向切分出来的 CscChunk 结构。
  */
 SplitedCscMatrix
@@ -416,7 +429,7 @@ split_csc_matrix(const CscMatrix &mtx, int chunk_num, double *vec) {
 
     int max_chunk_size = csc_matrix_chunk_size(mtx, chunk_num);
 
-    split_csc_matrix_get_chunk_ranges(mtx, result, max_chunk_size);
+    split_csc_matrix_get_chunk_ranges(mtx, result, max_chunk_size, chunk_num);
     split_csc_matrix_build_chunks(mtx, result, vec);
 
     return result;
