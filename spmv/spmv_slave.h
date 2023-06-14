@@ -7,12 +7,7 @@
 #include <slave.h>
 #include <string.h>
 
-typedef struct {
-    void *buff[2];
-    int size;
-    int in_use;
-} DoubleBuffering;
-
+// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
 void slave_csc_spmv(SpmvPara *para_mp);
 
 #endif

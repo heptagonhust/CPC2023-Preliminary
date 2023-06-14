@@ -9,6 +9,13 @@ __thread_local unsigned int get_cnt = 0;
 __thread_local crts_rply_t put_rply = 0;
 __thread_local unsigned int put_cnt = 0;
 
+// 双缓冲设计
+typedef struct {
+    void *buff[2];
+    int size;
+    int in_use;
+} DoubleBuffering;
+
 inline static void slave_double_buffering_new(DoubleBuffering *buff, int size) {
     buff->size = size;
     void *tmp = CRTS_pldm_malloc(size * 2);
@@ -49,8 +56,8 @@ static void slave_csc_chunk_unpack(CscChunk *chunk) {
 }
 
 // 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
-// _mp 代表这个指针类型保存的是主存中的地址(master pointer)
 void slave_csc_spmv(SpmvPara *para_mp) {
+    // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para_mp, sizeof(SpmvPara), &get_rply, get_cnt);
     int id = CRTS_tid;
