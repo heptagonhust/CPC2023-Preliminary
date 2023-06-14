@@ -2,9 +2,10 @@
 #define _SPMV_H_
 
 #include "spmv_def.h"
+#include "slave_def.h"
 #include <crts.h>
 #include <slave.h>
-#include "slave_def.h"
+#include <string.h>
 
 typedef struct {
     void *buff[2];

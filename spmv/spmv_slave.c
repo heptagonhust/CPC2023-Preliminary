@@ -100,10 +100,7 @@ void slave_csc_spmv(void *para) {
 
         double *block_result = slave_double_buffering_get(&double_buff, result_size);
 
-        // TODO: I need memset!!!
-        for (int j = 0; j < row_num; ++j) {
-            block_result[j] = .0;
-        }
+        memset(block_result, 0, sizeof(double) * row_num);
 
         // block 与 slice 的 spmv
         for (int j = 0; j < col_num; ++j) {
