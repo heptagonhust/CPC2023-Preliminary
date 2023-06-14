@@ -103,12 +103,16 @@ void slave_csc_spmv(void *para) {
             block_result[j] = tmp;
         }
 
+        int last = i - 1;
+        DMA_IPUT(dma_over, &last, sizeof(int), &put_rply, put_cnt);
         DMA_WAIT(&put_rply, put_cnt);
         DMA_IPUT_STRIDE(block_result_ptr, block_result, sizeof(double) * col_num, sizeof(double), sizeof(double) * chunk_num, &put_rply, put_cnt);
-        DMA_IPUT(dma_over, &i, sizeof(int), &put_rply, put_cnt);
 
         block_result_ptr += col_num * chunk_num;
     }
+
+    int last = chunk_num - 1;
+    DMA_IPUT(dma_over, &last, sizeof(int), &put_rply, put_cnt);
 
     slave_double_buffering_free(&double_buff);
 
