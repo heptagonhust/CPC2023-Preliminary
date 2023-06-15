@@ -1,19 +1,18 @@
-#pragma once
-
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
-#include "matrix_utils.cpp"
+#include "matrix_utils.h"
 #include "pcg.h"
 #include "spmv_def.h"
+#include "csc_matrix.h"
 
 /**
  * csc_matrix_sort_elements() - 对 CscMatrix 中的元素排序，使每列中的元素的行号都单调递增。
  *
  * @mtx: 待排序的 CscMatrix
  */
-void csc_matrix_sort_elements(CscMatrix &mtx) {
+static void csc_matrix_sort_elements(CscMatrix &mtx) {
     for (int i = 0; i < mtx.cols; ++i) {
         int size = mtx.col_off[i + 1] - mtx.col_off[i];
         int *rows = mtx.rows + mtx.col_off[i];
@@ -36,7 +35,7 @@ void csc_matrix_sort_elements(CscMatrix &mtx) {
     }
 }
 
-void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
+extern void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     csc_matrix.cols = ldu_matrix.cells;
     csc_matrix.data_size = count_ldu_matrix_nonzero_elements(ldu_matrix);
     csc_matrix.col_off = (int *)malloc((csc_matrix.cols + 1) * sizeof(int));
@@ -114,78 +113,7 @@ void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     csc_matrix_sort_elements(csc_matrix);
 }
 
-// basic spmv, 需要负载均衡
-void csc_spmv(const CscMatrix &csc_matrix, double *vec, double *result) {
-    for (int i = 0; i < csc_matrix.cols; ++i) {
-        result[i] = 0;
-    }
-
-    for (int i = 0; i < csc_matrix.cols; i++) {
-        int start = csc_matrix.col_off[i];
-        int num = csc_matrix.col_off[i + 1] - csc_matrix.col_off[i];
-        for (int j = 0; j < num; j++) {
-            int row = csc_matrix.rows[start + j];
-            int col = i;
-            double data = csc_matrix.data[start + j];
-            result[row] += vec[col] * data;
-        }
-    }
-}
-
-// void csc_precondition_spmv(
-//     const CscMatrix &csc_matrix,
-//     double *vec,
-//     double *val,
-//     double *result) {
-//     for (int i = 0; i < csr_matrix.rows; i++) {
-//         int start = csr_matrix.row_off[i];
-//         int num = csr_matrix.row_off[i + 1] - csr_matrix.row_off[i];
-//         double temp = 0;
-//         for (int j = 0; j < num; j++) {
-//             temp += vec[csr_matrix.cols[start + j]] * val[start + j];
-//         }
-//         result[i] = temp;
-//     }
-// }
-//
-// // diagonal precondition, get matrix M^(-1) (diagonal matrix)
-// // pre_mat_val: 非对角元     : csr_matrix中元素
-// //              对角元素     : 0
-// // preD       : csr_matrix中对角元素的倒数
-// void pcg_init_precondition_csc(const CscMatrix &csc_matrix, Precondition &pre) {
-//     for (int i = 0; i < csr_matrix.rows; i++) {
-//         for (int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i + 1];
-//              j++) {
-//             // get diagonal matrix
-//             if (csr_matrix.cols[j] == i) {
-//                 pre.pre_mat_val[j] = 0.;
-//                 pre.preD[i] = 1.0 / csr_matrix.data[j];
-//             } else {
-//                 pre.pre_mat_val[j] = csr_matrix.data[j];
-//             }
-//         }
-//     }
-// }
-//
-// // ? 存疑，循环用处?
-// void pcg_precondition_csc(
-//     const CscMatrix &csc_matrix,
-//     const Precondition &pre,
-//     double *rAPtr,
-//     double *wAPtr) {
-//     double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
-//     v_dot_product(csr_matrix.rows, pre.preD, rAPtr, wAPtr);
-//     memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
-//     for (int deg = 1; deg < 2; deg++) {
-//         // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
-//         csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
-//         v_sub_dot_product(csr_matrix.rows, rAPtr, gAPtr, pre.preD, wAPtr);
-//         memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
-//     }
-//     free(gAPtr);
-// }
-
-void free_csc_matrix(CscMatrix &mtx) {
+extern void free_csc_matrix(CscMatrix &mtx) {
     free(mtx.rows);
     free(mtx.data);
     free(mtx.col_off);
@@ -202,7 +130,7 @@ void free_csc_matrix(CscMatrix &mtx) {
  * Return: chunk 数量。
  *         若不存在一种切分方式满足每个 chunk 大小不超过 max_chunk_size 的限制，则返回 0x3f3f3f3f。
  */
-int csc_matrix_chunk_num(const CscMatrix &mtx, int max_chunk_size) {
+static int csc_matrix_chunk_num(const CscMatrix &mtx, int max_chunk_size) {
     for (int i = 0; i < mtx.cols; ++i) {
         if (COL_SIZE(i) > max_chunk_size) {
             return 0x3f3f3f3f;
@@ -229,7 +157,7 @@ int csc_matrix_chunk_num(const CscMatrix &mtx, int max_chunk_size) {
  *
  * Return: 切分后最大的 chunk 的大小
  */
-int csc_matrix_chunk_size(const CscMatrix &mtx, int chunk_num) {
+static int csc_matrix_chunk_size(const CscMatrix &mtx, int chunk_num) {
     int l = 0, r = mtx.data_size;
     while (l < r) {
         int chunk_size = l + (r - l) / 2;
@@ -246,7 +174,7 @@ int csc_matrix_chunk_size(const CscMatrix &mtx, int chunk_num) {
 /**
  * pjz 想看的东西
  */
-void split_csc_matrix_get_chunk_ranges(
+static void split_csc_matrix_get_chunk_ranges(
     const CscMatrix &mtx,
     SplitedCscMatrix &result,
     int max_chunk_size,
@@ -293,7 +221,7 @@ void split_csc_matrix_get_chunk_ranges(
     }
 }
 
-void build_single_chunk(
+static void build_single_chunk(
     const CscMatrix &mtx,
     CscChunk *&result,
     int result_chunk_idx,
@@ -390,7 +318,7 @@ void build_single_chunk(
     }
 }
 
-void csc_chunk_pack(CscChunk &chunk) {
+extern void csc_chunk_pack(CscChunk &chunk) {
     int meta_seg_num = 2;
     int rows_seg_num = 0;
     int col_off_seg_num = 0;
@@ -436,7 +364,7 @@ void csc_chunk_pack(CscChunk &chunk) {
     }
 }
 
-void csc_chunk_unpack(CscChunk &chunk) {
+extern void csc_chunk_unpack(CscChunk &chunk) {
     int meta_seg_num = 2;
     int *meta_seg = (int *)chunk.packed_data.mem;
     int *rows_seg = (int *)chunk.packed_data.mem + meta_seg_num;
@@ -460,7 +388,7 @@ void csc_chunk_unpack(CscChunk &chunk) {
 /**
  * vaaandark 想看的东西
  */
-void split_csc_matrix_build_chunks(
+static void split_csc_matrix_build_chunks(
     const CscMatrix &mtx,
     SplitedCscMatrix &result) {
     for (int i = 0; i < result.chunk_num; ++i) {
@@ -473,12 +401,12 @@ void split_csc_matrix_build_chunks(
     }
 }
 
-void free_packed_splited_csc_matrix_chunk(CscChunk *chunk) {
+extern void free_packed_splited_csc_matrix_chunk(CscChunk *chunk) {
     free(chunk->packed_data.mem);
     free(chunk);
 }
 
-void free_packed_splited_csc_matrix(SplitedCscMatrix *splited) {
+extern void free_packed_splited_csc_matrix(SplitedCscMatrix *splited) {
     for (int i = 0; i < splited->chunk_num; ++i) {
         free_packed_splited_csc_matrix_chunk(splited->chunks[i]);
     }
@@ -494,7 +422,7 @@ void free_packed_splited_csc_matrix(SplitedCscMatrix *splited) {
  *
  * Return: 数组。里面包含了 slice_num 个指针，指向切分出来的 CscChunk 结构。
  */
-SplitedCscMatrix split_csc_matrix(const CscMatrix &mtx, int chunk_num) {
+extern SplitedCscMatrix split_csc_matrix(const CscMatrix &mtx, int chunk_num) {
     SplitedCscMatrix result;
     result.chunk_num = chunk_num;
     result.chunk_ranges =

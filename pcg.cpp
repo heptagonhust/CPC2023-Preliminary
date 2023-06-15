@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "csc_matrix.cpp"
+#include "csc_matrix.h"
 #include "vector_utils.cpp"
 
 #include "vector.h"
@@ -39,7 +39,7 @@ PCGReturn pcg_solve(
     Precondition pre;
     pre.preD = (double *)malloc(cells * sizeof(double));
     pre.pre_mat_val = (double *)malloc((cells + faces * 2) * sizeof(double));
-    
+
     double *M = (double *)malloc(cells * sizeof(double));
 
     CRTS_init();
