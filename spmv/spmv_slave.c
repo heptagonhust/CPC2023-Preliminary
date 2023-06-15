@@ -65,22 +65,28 @@ void slave_csc_spmv(SpmvPara *para_mp) {
     double *result_mp = spmv_para.result;
 
     // 获取所需要的 chunk 在主存中的地址
-    CscChunk *chunk_mp = spmv_para.chunks[id];
+    CscChunk *chunk_mp;
+    DMA_GET(&chunk_mp, &(spmv_para.chunks[id]), sizeof(CscChunk *), &get_rply, get_cnt);
 
     // 将所需要的 chunk 读入
     int size;
-    DMA_GET(&size, &chunk_mp->size, sizeof(int), &get_rply, get_cnt);
+    DMA_GET(&size, &(chunk_mp->size), sizeof(int), &get_rply, get_cnt);
     CscChunk *chunk = (CscChunk *)CRTS_pldm_malloc(size);
     DMA_GET(chunk, chunk_mp, size, &get_rply, get_cnt);
     int block_num = chunk->block_num;
 
+    printf("line 78\n");
     void *mem = CRTS_pldm_malloc(chunk->packed_data.mem_size);
+    printf("line 80\n");
     DMA_GET(mem, chunk->packed_data.mem, chunk->packed_data.mem_size, &get_rply, get_cnt);
+    printf("line 82\n");
     chunk->packed_data.mem = mem;
+    printf("line 84\n");
     slave_csc_chunk_unpack(chunk);
 
     CscBlock *blocks = chunk->blocks;
 
+    printf("line 87\n");
     // 获取该 chunk 对应 vec 的 slice
     int col_begin = chunk->col_begin;
     double *vec_mp = spmv_para.vec + col_begin;
@@ -89,6 +95,7 @@ void slave_csc_spmv(SpmvPara *para_mp) {
     double *slice = (double *)CRTS_pldm_malloc(slice_size);
     DMA_GET(slice, vec_mp + col_begin, slice_size, &get_rply, get_cnt);
 
+    printf("line 96\n");
     DoubleBuffering double_buff;
     slave_double_buffering_new(&double_buff, sizeof(double) * spmv_para.max_block_row_num);
     double *block_result_mp = result_mp + id;
