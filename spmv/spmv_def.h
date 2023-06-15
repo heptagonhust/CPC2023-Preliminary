@@ -44,7 +44,6 @@ typedef struct {
     // 将一个 chunk 分成 block_num 个 block
     // **必须是第一个字段**
     int size;
-    double *vec;  // 数组大小为 sp_col
     // chunk 开始和结束的列序号（左闭右开）
     int col_begin;
     int col_end;
@@ -75,6 +74,7 @@ typedef struct {
     int max_block_row_num; // 所有 block 的最大行数
     double *result;    // 每个 chunk 计算得到的结果，共有 chunk_num 个，每个行数为 sp_row
     int *dma_over;      // 指示从核是否已经将结果写到主存，共有 chunk_num 个
+    double *vec;        // 右乘的向量
 } SpmvPara;
 
 #endif
