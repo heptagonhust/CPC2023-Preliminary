@@ -298,14 +298,12 @@ void build_single_chunk(
     CscChunk *&result,
     int result_chunk_idx,
     const CscChunkRange *ranges,
-    int chunk_num,
-    double *vec) {
+    int chunk_num) {
     int block_num = chunk_num;
     int chunk_mem_size = sizeof(CscChunk) + sizeof(CscBlock) * block_num;
 
     result = (CscChunk *)malloc(chunk_mem_size);
     result->size = chunk_mem_size;
-    result->vec = vec + ranges[result_chunk_idx].col_begin;
     result->col_begin = ranges[result_chunk_idx].col_begin;
     result->col_end =
         ranges[result_chunk_idx].col_begin + ranges[result_chunk_idx].col_num;
@@ -464,16 +462,14 @@ void csc_chunk_unpack(CscChunk &chunk) {
  */
 void split_csc_matrix_build_chunks(
     const CscMatrix &mtx,
-    SplitedCscMatrix &result,
-    double *vec) {
+    SplitedCscMatrix &result) {
     for (int i = 0; i < result.chunk_num; ++i) {
         build_single_chunk(
             mtx,
             result.chunks[i],
             i,
             result.chunk_ranges,
-            result.chunk_num,
-            vec);
+            result.chunk_num);
     }
 }
 
@@ -495,12 +491,10 @@ void free_packed_splited_csc_matrix(SplitedCscMatrix *splited) {
  *
  * @mtx: 待切分矩阵
  * @slice_num: 需要切分出来的 chunk 数量。
- * @vec: 将要被乘的向量
  *
  * Return: 数组。里面包含了 slice_num 个指针，指向切分出来的 CscChunk 结构。
  */
-SplitedCscMatrix
-split_csc_matrix(const CscMatrix &mtx, int chunk_num, double *vec) {
+SplitedCscMatrix split_csc_matrix(const CscMatrix &mtx, int chunk_num) {
     SplitedCscMatrix result;
     result.chunk_num = chunk_num;
     result.chunk_ranges =
@@ -510,7 +504,7 @@ split_csc_matrix(const CscMatrix &mtx, int chunk_num, double *vec) {
     int max_chunk_size = csc_matrix_chunk_size(mtx, chunk_num);
 
     split_csc_matrix_get_chunk_ranges(mtx, result, max_chunk_size, chunk_num);
-    split_csc_matrix_build_chunks(mtx, result, vec);
+    split_csc_matrix_build_chunks(mtx, result);
 
     return result;
 }

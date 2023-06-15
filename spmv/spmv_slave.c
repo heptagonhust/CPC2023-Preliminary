@@ -55,7 +55,6 @@ static void slave_csc_chunk_unpack(CscChunk *chunk) {
     }
 }
 
-// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
 void slave_csc_spmv(SpmvPara *para_mp) {
     // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
@@ -83,8 +82,8 @@ void slave_csc_spmv(SpmvPara *para_mp) {
     CscBlock *blocks = chunk->blocks;
 
     // 获取该 chunk 对应 vec 的 slice
-    double *vec_mp = chunk->vec;
     int col_begin = chunk->col_begin;
+    double *vec_mp = spmv_para.vec + col_begin;
     int col_end = chunk->col_end;
     int slice_size = col_end - col_begin;
     double *slice = (double *)CRTS_pldm_malloc(slice_size);

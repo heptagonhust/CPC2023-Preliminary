@@ -3,6 +3,7 @@
 #define SLAVE_CORE_NUM 64
 void csc_spmv(SpmvPara *para, double *result) {
     CRTS_athread_spawn(slave_csc_spmv, &para);
+    memset(result, 0, sizeof(double) * para->sp_col);
     int chunk_num = para->chunk_num;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
@@ -28,7 +29,12 @@ void csc_spmv(SpmvPara *para, double *result) {
     }
 }
 
-void splited_csc_matrix_to_spmv_para(const SplitedCscMatrix *mat, SpmvPara *para, int row_num, int col_num) {
+void spmv_para_from_splited_csc_matrix(
+    const SplitedCscMatrix *mat,
+    SpmvPara *para,
+    double *vec,
+    int row_num,
+    int col_num) {
     int chunk_num = mat->chunk_num;
     para->chunk_num = chunk_num;
     para->chunks = mat->chunks;
@@ -38,6 +44,7 @@ void splited_csc_matrix_to_spmv_para(const SplitedCscMatrix *mat, SpmvPara *para
     memset(para->dma_over, 0, sizeof(int) * chunk_num);
     para->sp_col = col_num;
     para->sp_row = row_num;
+    para->vec = vec;
     int max_block_row_num = 0;
     for (int i = 0; i < chunk0->block_num; ++i) {
         CscBlock *b = chunk0->blocks + i;
@@ -52,10 +59,4 @@ void splited_csc_matrix_to_spmv_para(const SplitedCscMatrix *mat, SpmvPara *para
 void spmv_para_free(SpmvPara *para) {
     free(para->dma_over);
     free(para->result);
-    for (int i = 0; i < para->chunk_num; ++i) {
-        CscChunk *chunk = para->chunks[i];
-        free(chunk->packed_data.mem);
-        free(chunk);
-    }
-    free(para->chunks);
 }
