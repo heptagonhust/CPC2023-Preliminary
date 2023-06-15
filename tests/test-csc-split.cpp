@@ -22,7 +22,7 @@ int main(void) {
         ldu_to_csc(ldu_matrix, csc_matrix);
         free_ldu_matrix(ldu_matrix);
 
-        auto splited = split_csc_matrix(csc_matrix, 64, NULL);
+        auto splited = split_csc_matrix(csc_matrix, 64);
         for (int i = 0; i < splited.chunk_num; ++i) {
             csc_chunk_pack(*splited.chunks[i]);
             csc_chunk_unpack(*splited.chunks[i]);

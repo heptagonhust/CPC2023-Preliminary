@@ -5,6 +5,7 @@
 
 #include "pcg.h"
 #include "pcg_def.h"
+#include "vector_utils.cpp"
 
 void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
     csr_matrix.rows = ldu_matrix.cells;
