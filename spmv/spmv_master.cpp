@@ -52,5 +52,10 @@ void splited_csc_matrix_to_spmv_para(const SplitedCscMatrix *mat, SpmvPara *para
 void spmv_para_free(SpmvPara *para) {
     free(para->dma_over);
     free(para->result);
-    // TODO: free other parts
+    for (int i = 0; i < para->chunk_num; ++i) {
+        CscChunk *chunk = para->chunks[i];
+        free(chunk->packed_data.mem);
+        free(chunk);
+    }
+    free(para->chunks);
 }
