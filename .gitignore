@@ -4,3 +4,5 @@ pcg_solve
 a.out
 crts.h
 fake-include/
+perf.data
+perf.data.old

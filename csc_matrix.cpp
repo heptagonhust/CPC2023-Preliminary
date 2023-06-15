@@ -477,6 +477,19 @@ void split_csc_matrix_build_chunks(
     }
 }
 
+void free_packed_splited_csc_matrix_chunk(CscChunk *chunk) {
+    free(chunk->packed_data.mem);
+    free(chunk);
+}
+
+void free_packed_splited_csc_matrix(SplitedCscMatrix *splited) {
+    for (int i = 0; i < splited->chunk_num; ++i) {
+        free_packed_splited_csc_matrix_chunk(splited->chunks[i]);
+    }
+    free(splited->chunks);
+    free(splited->chunk_ranges);
+}
+
 /**
  * split_csc_matrix() - 将给定的 CscMatrix 尽可能均匀地切分成若干个 chunk
  *

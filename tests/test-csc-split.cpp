@@ -32,6 +32,7 @@ int main(void) {
         auto plain_splited = plain_matrix_from_splited_csc_matrix(splited);
 
         free_csc_matrix(csc_matrix);
+        free_packed_splited_csc_matrix(&splited);
 
         assert(plain_csc == plain_splited);
     }
