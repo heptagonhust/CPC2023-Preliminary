@@ -10,7 +10,7 @@ EXE=pcg_solve
 
 all: $(EXE)
 
-$(EXE): main.o pcg.o vector_opt.o slave.o vector_slave.o
+$(EXE): main.o pcg.o vector_master.o slave.o vector_slave.o
 	$(CXX) -mhybrid -o $(EXE) $^ -L. -lpcg_solve
 
 main.o:	main.cpp
@@ -19,7 +19,7 @@ main.o:	main.cpp
 pcg.o: pcg.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
-vector_opt.o: vector/vector_master.cpp
+vector_master.o: vector/vector_master.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
 slave.o: slave.c
