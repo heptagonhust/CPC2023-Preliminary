@@ -7,7 +7,6 @@
 #include <string.h>
 
 #include "csc_matrix.h"
-#include "vector_utils.cpp"
 
 #include "vector.h"
 #include "spmv.h"
