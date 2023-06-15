@@ -1,18 +1,8 @@
 #pragma once
 
 #include "pcg_def.h"
-#include "vector_slave_def.h"
+#include "vector_def.h"
 
-void pcg_init_precondition_csr_opt(
-    const CsrMatrix &csr_matrix,
-    Precondition &pre,
-    Slave_task *ntask);
-void pcg_precondition_csr_opt(
-    const CsrMatrix &csr_matrix,
-    const Precondition &pre,
-    double *rAPtr,
-    double *wAPtr,
-    Slave_task *ntask);
 double pcg_gsumMag_opt(
     double *r,
     int size,
@@ -46,5 +36,12 @@ void pcg_update_p_opt(
     double *p,
     double *z,
     double beta,
+    int cells,
+    Slave_task *ntask);
+
+void precond_update_g_opt(
+    double *g,
+    double *z_k1,
+    double *m,
     int cells,
     Slave_task *ntask);

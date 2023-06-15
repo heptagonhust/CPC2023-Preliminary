@@ -15,12 +15,7 @@ PCGReturn pcg_solve(const LduMatrix &ldu_matrix, double * source, double *psi, i
 void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix);
 void csr_spmv(const CsrMatrix &csr_matrix, double *x, double *b);
 void csr_precondition_spmv(const CsrMatrix &csr_matrix, double *vec, double *val, double *result);
-void v_dot_product(const int nCells, const double *vec1, const double *vec2, double *result);
-void v_sub_dot_product(const int nCells, const double *sub, const double *subed, const double *vec, double *result);
-void pcg_init_precondition_csr (const CsrMatrix &csr_matrix, Precondition &pre);
-void pcg_precondition_csr(const CsrMatrix &csr_matrix, const Precondition &pre, double *rAPtr, double *wAPtr);
-double pcg_gsumMag(double *r, int size);
-double pcg_gsumProd(double *z, double *r, int size);
+void pcg_init_precondition_csr (const CsrMatrix &csr_matrix, Precondition &pre, double *M);
 void free_pcg(PCG &pcg);
 void free_csr_matrix(CsrMatrix &csr_matrix);
 void free_precondition(Precondition &pre);

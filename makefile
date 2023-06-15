@@ -4,7 +4,7 @@ CXX=sw9g++
 CFLAGS= -mslave -msimd -mieee
 CXXFLAGS= -mhost -mieee -mftz -fpermissive
 INCLUDE=-I.
-INCLUDE+=-I$(CURDIR)/vector
+INCLUDE+=-I./vector
 
 EXE=pcg_solve
 
@@ -19,7 +19,7 @@ main.o:	main.cpp
 pcg.o: pcg.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
-vector_opt.o: vector/vector_opt.cpp
+vector_opt.o: vector/vector_master.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
 slave.o: slave.c
