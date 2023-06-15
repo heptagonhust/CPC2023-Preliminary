@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pcg_def.h"
-#include "vector/vector.h"
+#include "vector.h"
 
 
 void pcg_init_precondition_csr_opt(
