@@ -7,7 +7,9 @@
 #include <slave.h>
 #include <string.h>
 
-// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
+/// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
+///
+/// * `para_mp` - 从核计算所需要参数在主存中的地址
 void slave_csc_spmv(SpmvPara *para_mp);
 
 #endif
