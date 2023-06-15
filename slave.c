@@ -1,5 +1,6 @@
-#include <crts.h>
 #include <slave.h>
-
+#include <crts.h>
 #include "pcg_def.h"
-#include "vector_slave.h"
+#include "spmv.h"
+#include "vector.h"
+

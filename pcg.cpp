@@ -6,8 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vector.h"
+#include "csc_matrix.cpp"
+#include "csr_matrix.cpp"
+#include "vector_utils.cpp"
+
 #include "pcg_opt.h"
+#include "vector.h"
+#include "spmv.h"
+
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -52,7 +58,7 @@ PCGReturn pcg_solve(
         }
     }
 
-    //format transform
+    // format transform
     CsrMatrix csr_matrix;
     ldu_to_csr(ldu_matrix, csr_matrix);
 
@@ -66,6 +72,7 @@ PCGReturn pcg_solve(
     }
     // calculate residual, scale
     pcg.residual = pcg_gsumMag_opt(pcg.r, cells, normfactor, tolerance, ntask);
+
     double init_residual = pcg.residual;
 
     if (fabs(pcg.residual / normfactor) > tolerance) {
@@ -88,10 +95,11 @@ PCGReturn pcg_solve(
                 // p = z + beta * p
                 pcg.beta = pcg.sumprod / pcg.sumprod_old;
 
-                //未优化代码段
+                // 未优化代码段
                 /*for(int i = 0; i < cells; i++) {
                     pcg.p[i] = pcg.z[i] + pcg.beta * pcg.p[i];
                 }*/
+
 
                 pcg_update_p_opt(pcg.p, pcg.z, pcg.beta, cells, ntask);
             }
@@ -128,6 +136,7 @@ PCGReturn pcg_solve(
     pcg_return.iter = iter;
     return pcg_return;
 }
+
 
 void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
     csc_matrix.cols = ldu_matrix.cells;
@@ -317,17 +326,12 @@ void pcg_precondition_csr_opt(
     free(gAPtr);
 }
 
+
 void free_pcg(PCG &pcg) {
     free(pcg.r);
     free(pcg.z);
     free(pcg.p);
     free(pcg.Ax);
-}
-
-void free_csr_matrix(CsrMatrix &csr_matrix) {
-    free(csr_matrix.cols);
-    free(csr_matrix.data);
-    free(csr_matrix.row_off);
 }
 
 void free_precondition(Precondition &pre) {
