@@ -7,13 +7,12 @@
 #include <string.h>
 
 #include "csc_matrix.cpp"
-#include "csr_matrix.cpp"
 #include "vector_utils.cpp"
 
-#include "pcg_opt.h"
 #include "vector.h"
 #include "spmv.h"
 
+#define SLAVE_CORE_NUM 64
 
 // ldu_matrix: matrix A
 // source: vector b
@@ -45,27 +44,33 @@ PCGReturn pcg_solve(
 
     CRTS_init();
 
-    Slave_task ntask[64];
-    int len = cells / 64;
-    int rest = cells % 64;
-    for (int i = 0; i < 64; ++i) {
-        if (i < rest) {
-            ntask[i].col_num = len + 1;
-            ntask[i].col_start = i * (len + 1);
-        } else {
-            ntask[i].col_num = len;
-            ntask[i].col_start = i * len + rest;
-        }
-    }
+    // Slave_task ntask[64];
+    // int len = cells / 64;
+    // int rest = cells % 64;
+    // for (int i = 0; i < 64; ++i) {
+    //     if (i < rest) {
+    //         ntask[i].col_num = len + 1;
+    //         ntask[i].col_start = i * (len + 1);
+    //     } else {
+    //         ntask[i].col_num = len;
+    //         ntask[i].col_start = i * len + rest;
+    //     }
+    // }
 
-    // format transform
-    CsrMatrix csr_matrix;
-    ldu_to_csr(ldu_matrix, csr_matrix);
+    // data structure transform
+    CscMatrix csc_matrix;
+    ldu_to_csc(ldu_matrix, csc_matrix);
+    SplitedCscMatrix splited_matrix = split_csc_matrix(csc_matrix, SLAVE_CORE_NUM, NULL);
+    // Spmv parameter generation
+    SpmvPara para_Ax, para_Ap, para_Az;
+    spmv_para_from_splited_csc_matrix(splited_matrix, para_Ap, pcg.p, cells, cells);
+    spmv_para_from_splited_csc_matrix(splited_matrix, para_Az, pcg.z, cells, cells);
+    spmv_para_from_splited_csc_matrix(splited_matrix, para_Ax, x, cells, cells);
 
-    pcg_init_precondition_csr(csr_matrix, pre, M);
+    pcg_init_precondition_csc(csc_matrix, pre, M);
 
     // AX = A * X
-    csr_spmv(csr_matrix, x, pcg.Ax);
+    csc_spmv(para_Ax, pcg.Ax);
     // r = b - A * x
     for (int i = 0; i < cells; i++) {
         pcg.r[i] = source[i] - pcg.Ax[i];
@@ -105,7 +110,7 @@ PCGReturn pcg_solve(
             }
 
             // Ax = A * p
-            csr_spmv(csr_matrix, pcg.p, pcg.Ax);
+            csc_spmv(para_Ap, pcg.Ax);
 
             // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p)
             pcg.alpha =
@@ -138,169 +143,24 @@ PCGReturn pcg_solve(
 }
 
 
-void ldu_to_csc(const LduMatrix &ldu_matrix, CscMatrix &csc_matrix) {
-    csc_matrix.cols = ldu_matrix.cells;
-    csc_matrix.data_size = 2*ldu_matrix.faces + ldu_matrix.cells;
-    csc_matrix.col_off = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
-    csc_matrix.rows = (int *)malloc(csc_matrix.data_size*sizeof(int));
-    csc_matrix.data = (double *)malloc(csc_matrix.data_size*sizeof(double));
-
-    int row, col, offset;
-    int *tmp = (int *)malloc((csc_matrix.cols + 1)*sizeof(int));
-
-    csc_matrix.col_off[0] = 0;
-    for(int i = 1; i < csc_matrix.cols + 1; i++)
-        csc_matrix.col_off[i] = 1;
-
-    for(int i = 0; i < ldu_matrix.faces; i++){
-        row     = ldu_matrix.uPtr[i] ;
-        col = ldu_matrix.lPtr[i] ;
-        csc_matrix.col_off[row+1]++;
-        csc_matrix.col_off[col+1]++;
-    }
-
-    for(int i = 0;i< ldu_matrix.cells; i++){
-        csc_matrix.col_off[i+1] += csc_matrix.col_off[i];
-    }
-
-    memcpy(&tmp[0], &csc_matrix.col_off[0], (ldu_matrix.cells + 1)*sizeof(int));
-    // lower
-    for(int i = 0; i < ldu_matrix.faces; i++ ){
-        row = ldu_matrix.uPtr[i];
-        col = ldu_matrix.lPtr[i];
-        offset = tmp[col]++;
-        csc_matrix.rows[offset] = row;
-        csc_matrix.data[offset] = ldu_matrix.lower[i];
-    }
-
-    // diag
-    for(int i = 0; i < ldu_matrix.cells; i++){
-        offset = tmp[i]++;
-        csc_matrix.rows[offset] = i;
-        csc_matrix.data[offset] = ldu_matrix.diag[i];
-    }
-
-    // upper
-    for(int i = 0; i < ldu_matrix.faces; i++){
-        row = ldu_matrix.lPtr[i];
-        col = ldu_matrix.uPtr[i];
-        offset = tmp[col]++;
-        csc_matrix.rows[offset] = row;
-        csc_matrix.data[offset] = ldu_matrix.upper[i];
-    }
-
-    free(tmp);
-}
-
-void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {
-    csr_matrix.rows = ldu_matrix.cells;
-    csr_matrix.data_size = 2 * ldu_matrix.faces + ldu_matrix.cells;
-    csr_matrix.row_off = (int *)malloc((csr_matrix.rows + 1) * sizeof(int));
-    csr_matrix.cols = (int *)malloc(csr_matrix.data_size * sizeof(int));
-    csr_matrix.data = (double *)malloc(csr_matrix.data_size * sizeof(double));
-
-    int row, col, offset;
-    int *tmp = (int *)malloc((csr_matrix.rows + 1) * sizeof(int));
-
-    csr_matrix.row_off[0] = 0;
-    for (int i = 1; i < csr_matrix.rows + 1; i++)
-        csr_matrix.row_off[i] = 1;
-
-    for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.uPtr[i];
-        col = ldu_matrix.lPtr[i];
-        csr_matrix.row_off[row + 1]++;
-        csr_matrix.row_off[col + 1]++;
-    }
-
-    for (int i = 0; i < ldu_matrix.cells; i++) {
-        csr_matrix.row_off[i + 1] += csr_matrix.row_off[i];
-    }
-
-    memcpy(
-        &tmp[0],
-        &csr_matrix.row_off[0],
-        (ldu_matrix.cells + 1) * sizeof(int));
-    // lower
-    for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.uPtr[i];
-        col = ldu_matrix.lPtr[i];
-        offset = tmp[row]++;
-        csr_matrix.cols[offset] = col;
-        csr_matrix.data[offset] = ldu_matrix.lower[i];
-    }
-
-    // diag
-    for (int i = 0; i < ldu_matrix.cells; i++) {
-        offset = tmp[i]++;
-        csr_matrix.cols[offset] = i;
-        csr_matrix.data[offset] = ldu_matrix.diag[i];
-    }
-
-    // upper
-    for (int i = 0; i < ldu_matrix.faces; i++) {
-        row = ldu_matrix.lPtr[i];
-        col = ldu_matrix.uPtr[i];
-        offset = tmp[row]++;
-        csr_matrix.cols[offset] = col;
-        csr_matrix.data[offset] = ldu_matrix.upper[i];
-    }
-
-    free(tmp);
-}
-
-// basic spmv, 需要负载均衡
-void csr_spmv(const CsrMatrix &csr_matrix, double *vec, double *result) {
-    for (int i = 0; i < csr_matrix.rows; i++) {
-        int start = csr_matrix.row_off[i];
-        int num = csr_matrix.row_off[i + 1] - csr_matrix.row_off[i];
-        double temp = 0;
-        for (int j = 0; j < num; j++) {
-            temp +=
-                vec[csr_matrix.cols[start + j]] * csr_matrix.data[start + j];
-        }
-        result[i] = temp;
-    }
-}
-
-void csr_precondition_spmv(
-    const CsrMatrix &csr_matrix,
-    double *vec,
-    double *val,
-    double *result) {
-    for (int i = 0; i < csr_matrix.rows; i++) {
-        int start = csr_matrix.row_off[i];
-        int num = csr_matrix.row_off[i + 1] - csr_matrix.row_off[i];
-        double temp = 0;
-        for (int j = 0; j < num; j++) {
-            temp += vec[csr_matrix.cols[start + j]] * val[start + j];
-        }
-        result[i] = temp;
-    }
-}
-
 // diagonal precondition, get matrix M^(-1) (diagonal matrix)
 // pre_mat_val: 非对角元     : csr_matrix中元素
 //              对角元素     : 0
 // preD       : csr_matrix中对角元素的倒数
-void pcg_init_precondition_csr(const CsrMatrix &csr_matrix, Precondition &pre, double *M) {
-    for (int i = 0; i < csr_matrix.rows; i++) {
-        for (int j = csr_matrix.row_off[i]; j < csr_matrix.row_off[i + 1];
+void pcg_init_precondition_csc(const CscMatrix &csc_matrix, Precondition &pre, double *M) {
+    for (int i = 0; i < csc_matrix.cols; i++) {
+        for (int j = csr_matrix.col_off[i]; j < csc_matrix.col_off[i + 1];
              j++) {
-            // get diagonal matrix
-            if (csr_matrix.cols[j] == i) {
-                pre.pre_mat_val[j] = 0.;
+            if (csc_matrix.rows[j] == i) {
                 pre.preD[i] = 1.0 / csr_matrix.data[j];
                 M[i] = csr_matrix.data[j];
-            } else {
-                pre.pre_mat_val[j] = csr_matrix.data[j];
             }
         }
     }
 }
 
 void pcg_precondition_csr_opt(
-    const CsrMatrix &csr_matrix,
+    const SpmvPara &para_Az,
     const Precondition &pre,
     double *rAPtr,
     double *wAPtr,
@@ -310,9 +170,7 @@ void pcg_precondition_csr_opt(
     double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
     memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
-        // gAPtr = wAptr * pre.pre_mat_val; vec[rows] = matrix * vec[rows]
-        // csr_precondition_spmv(csr_matrix, wAPtr, pre.pre_mat_val, gAPtr);
-        csr_spmv(csr_matrix, wAPtr, gAPtr);
+        csc_spmv(para_Az, gAPtr);
         precond_update_g_opt(gAPtr, wAPtr, M, csr_matrix.rows, ntask);
         v_sub_dot_product_opt(
             csr_matrix.rows,

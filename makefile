@@ -33,7 +33,7 @@ spmv_slave.o: spmv/spmv_slave.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
   
 vector_slave.o: vector/vector_slave.c
-	$(CC) $(CFLAGS)  -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 clean:
 	$(RM) $(EXE) *.o;
