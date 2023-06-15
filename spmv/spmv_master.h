@@ -13,7 +13,7 @@
 /// 将计算任务分配到所有(64个)从核进行计算
 /// 
 /// * `para` - 从核计算所需参数，包含了从核计算 spmv 的各种参数，用于调用 `slave_csc_spmv`
-/// * `result` - spmv 的计算结果，应当是一个在调用本函数之前就分配好的数组，并全部初始化为 0
+/// * `result` - spmv 的计算结果，应当是一个在调用本函数之前就分配好的数组
 void csc_spmv(SpmvPara *para, double *result);
 
 /// 将划分好的 csc 矩阵转换成 spmv_para

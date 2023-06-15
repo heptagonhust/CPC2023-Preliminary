@@ -3,6 +3,7 @@
 #define SLAVE_CORE_NUM 64
 void csc_spmv(SpmvPara *para, double *result) {
     CRTS_athread_spawn(slave_csc_spmv, &para);
+    memset(result, 0, sizeof(double) * para->sp_col);
     int chunk_num = para->chunk_num;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
