@@ -7,7 +7,7 @@
 #include "pcg_def.h"
 #include "spmv_def.h"
 #include "spmv_slave.h"
-
+#include "csc_matrix.h"
 /// 并行计算稀疏矩阵乘向量(spmv)
 ///
 /// 将计算任务分配到所有(64个)从核进行计算

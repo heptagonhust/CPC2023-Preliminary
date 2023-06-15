@@ -44,33 +44,36 @@ PCGReturn pcg_solve(
 
     CRTS_init();
 
-    // Slave_task ntask[64];
-    // int len = cells / 64;
-    // int rest = cells % 64;
-    // for (int i = 0; i < 64; ++i) {
-    //     if (i < rest) {
-    //         ntask[i].col_num = len + 1;
-    //         ntask[i].col_start = i * (len + 1);
-    //     } else {
-    //         ntask[i].col_num = len;
-    //         ntask[i].col_start = i * len + rest;
-    //     }
-    // }
+    Slave_task ntask[64];
+    int len = cells / 64;
+    int rest = cells % 64;
+    for (int i = 0; i < 64; ++i) {
+        if (i < rest) {
+            ntask[i].col_num = len + 1;
+            ntask[i].col_start = i * (len + 1);
+        } else {
+            ntask[i].col_num = len;
+            ntask[i].col_start = i * len + rest;
+        }
+    }
 
     // data structure transform
     CscMatrix csc_matrix;
     ldu_to_csc(ldu_matrix, csc_matrix);
-    SplitedCscMatrix splited_matrix = split_csc_matrix(csc_matrix, SLAVE_CORE_NUM, NULL);
+    SplitedCscMatrix splited_matrix = split_csc_matrix(csc_matrix, SLAVE_CORE_NUM);
+    for (int i = 0; i < splited_matrix.chunk_num; ++i) {
+        csc_chunk_pack(*splited_matrix.chunks[i]);
+    }
     // Spmv parameter generation
     SpmvPara para_Ax, para_Ap, para_Az;
-    spmv_para_from_splited_csc_matrix(splited_matrix, para_Ap, pcg.p, cells, cells);
-    spmv_para_from_splited_csc_matrix(splited_matrix, para_Az, pcg.z, cells, cells);
-    spmv_para_from_splited_csc_matrix(splited_matrix, para_Ax, x, cells, cells);
+    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Ap, pcg.p, cells, cells);
+    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Az, pcg.z, cells, cells);
+    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Ax, x, cells, cells);
 
     pcg_init_precondition_csc(csc_matrix, pre, M);
 
     // AX = A * X
-    csc_spmv(para_Ax, pcg.Ax);
+    csc_spmv(&para_Ax, pcg.Ax);
     // r = b - A * x
     for (int i = 0; i < cells; i++) {
         pcg.r[i] = source[i] - pcg.Ax[i];
@@ -85,7 +88,7 @@ PCGReturn pcg_solve(
             if (iter == 0) {
                 // z = M(-1) * r
                 // M: diagonal matrix of csr matrix A : diagonal preprocess
-                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, M, ntask);
+                pcg_precondition_csc_opt(para_Az, pre, pcg.r, pcg.z, M, ntask, cells);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // iter ==0 ; p = z
@@ -93,7 +96,7 @@ PCGReturn pcg_solve(
             } else {
                 pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
-                pcg_precondition_csr_opt(csr_matrix, pre, pcg.r, pcg.z, M, ntask);
+                pcg_precondition_csc_opt(para_Az, pre, pcg.r, pcg.z, M, ntask, cells);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // beta = tol_1 / tol_0
@@ -110,7 +113,7 @@ PCGReturn pcg_solve(
             }
 
             // Ax = A * p
-            csc_spmv(para_Ap, pcg.Ax);
+            csc_spmv(&para_Ap, pcg.Ax);
 
             // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p)
             pcg.alpha =
@@ -133,8 +136,14 @@ PCGReturn pcg_solve(
         iter);
 
     free_pcg(pcg);
-    free_csr_matrix(csr_matrix);
     free_precondition(pre);
+    free_csc_matrix(csc_matrix);
+
+    spmv_para_free(&para_Ax);
+    spmv_para_free(&para_Ap);
+    spmv_para_free(&para_Az);
+
+    free_packed_splited_csc_matrix(&splited_matrix);
 
     PCGReturn pcg_return;
     pcg_return.residual = pcg.residual;
@@ -149,37 +158,38 @@ PCGReturn pcg_solve(
 // preD       : csr_matrix中对角元素的倒数
 void pcg_init_precondition_csc(const CscMatrix &csc_matrix, Precondition &pre, double *M) {
     for (int i = 0; i < csc_matrix.cols; i++) {
-        for (int j = csr_matrix.col_off[i]; j < csc_matrix.col_off[i + 1];
+        for (int j = csc_matrix.col_off[i]; j < csc_matrix.col_off[i + 1];
              j++) {
             if (csc_matrix.rows[j] == i) {
-                pre.preD[i] = 1.0 / csr_matrix.data[j];
-                M[i] = csr_matrix.data[j];
+                pre.preD[i] = 1.0 / csc_matrix.data[j];
+                M[i] = csc_matrix.data[j];
             }
         }
     }
 }
 
-void pcg_precondition_csr_opt(
-    const SpmvPara &para_Az,
+void pcg_precondition_csc_opt(
+    SpmvPara &para_Az,
     const Precondition &pre,
     double *rAPtr,
     double *wAPtr,
     double *M,
-    Slave_task *ntask) {
-    v_dot_product_opt(csr_matrix.rows, pre.preD, rAPtr, wAPtr, ntask);
-    double *gAPtr = (double *)malloc(csr_matrix.rows * sizeof(double));
-    memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
+    Slave_task *ntask,
+    int cells) {
+    v_dot_product_opt(cells, pre.preD, rAPtr, wAPtr, ntask);
+    double *gAPtr = (double *)malloc(cells * sizeof(double));
+    memset(gAPtr, 0, cells * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
-        csc_spmv(para_Az, gAPtr);
-        precond_update_g_opt(gAPtr, wAPtr, M, csr_matrix.rows, ntask);
+        csc_spmv(&para_Az, gAPtr);
+        precond_update_g_opt(gAPtr, wAPtr, M, cells, ntask);
         v_sub_dot_product_opt(
-            csr_matrix.rows,
+            cells,
             rAPtr,
             gAPtr,
             pre.preD,
             wAPtr,
             ntask);
-        memset(gAPtr, 0, csr_matrix.rows * sizeof(double));
+        memset(gAPtr, 0, cells * sizeof(double));
     }
     free(gAPtr);
 }

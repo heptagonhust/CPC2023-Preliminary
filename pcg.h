@@ -22,11 +22,12 @@ void pcg_init_precondition_csc(
     const CscMatrix &csr_matrix,
     Precondition &pre,
     double *M);
-void pcg_precondition_csr_opt(
-    const SpmvPara &para_Az,
+void pcg_precondition_csc_opt(
+    SpmvPara &para_Az,
     const Precondition &pre,
     double *rAPtr,
     double *wAPtr,
     double *M,
-    Slave_task *ntask);
+    Slave_task *ntask,
+    int cells);
 #endif
