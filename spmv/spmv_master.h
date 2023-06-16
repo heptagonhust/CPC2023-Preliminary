@@ -25,7 +25,7 @@ void csc_spmv(SpmvPara *para, double *result);
 /// * `vec` - spmv 中的右乘向量
 /// * `row_num` - 系数矩阵的行数
 /// * `col_num` - 系数矩阵的列数
-void spmv_para_from_splited_csc_matrix(
+void spmv_para_from_splited_coo_matrix(
     const SplitedCscMatrix *mat,
     SpmvPara *para,
     double *vec,

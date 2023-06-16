@@ -29,7 +29,7 @@ void csc_spmv(SpmvPara *para, double *result) {
     }
 }
 
-void spmv_para_from_splited_csc_matrix(
+void spmv_para_from_splited_coo_matrix(
     const SplitedCscMatrix *mat,
     SpmvPara *para,
     double *vec,
@@ -37,23 +37,20 @@ void spmv_para_from_splited_csc_matrix(
     int col_num) {
     int chunk_num = mat->chunk_num;
     para->chunk_num = chunk_num;
-    para->chunks = mat->chunks;
-    for (int i = 0; i < 64; ++i) {
-        printf("chunk %d: %lx\n", i, mat->chunks[i]);
-    }
-    CscChunk *chunk0 = mat->chunks[0];
+    para->sp_row = row_num;
+    para->sp_col = col_num;
     para->result = (double *)malloc(sizeof(double) * chunk_num * row_num);
     para->dma_over = (int *)malloc(sizeof(int) * chunk_num);
     memset(para->dma_over, 0, sizeof(int) * chunk_num);
-    para->sp_col = col_num;
-    para->sp_row = row_num;
     para->vec = vec;
+    memcpy(para->chunks, mat->chunks, SLAVE_CORE_NUM * sizeof(SizedCooChunk));
+    // all chunks have the same block size
+    CooChunk *chunk0 = mat->chunks[0];
     int max_block_row_num = 0;
     for (int i = 0; i < chunk0->block_num; ++i) {
-        CscBlock *b = chunk0->blocks + i;
-        row_num = b->row_end - b->row_begin;
-        if (row_num > max_block_row_num) {
-            max_block_row_num = row_num;
+        int num = chunk0->blocks[i+1].row_begin - chunk0->blocks[i].row_begin;
+        if (num > max_block_row_num) {
+            max_block_row_num = num;
         }
     }
     para->max_block_row_num = max_block_row_num;

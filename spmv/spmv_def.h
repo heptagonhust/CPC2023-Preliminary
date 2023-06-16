@@ -90,13 +90,12 @@ typedef struct {
     // block 开始和结束的行序号（左闭右开）（暂时没有用到）
     int row_begin;
     int data_size;  // **这个** block 中非零元素的个数(nn0)
+    //* 该block中第一个元素相对于chunk第一个元素的偏移
     int block_off;
 } CooBlock;
 
+// 将一个 chunk 分成 block_num 个 block
 typedef struct {
-    // 将一个 chunk 分成 block_num 个 block
-    // **必须是第一个字段**
-    int size;
     // chunk 开始和结束的列序号（左闭右开）
     int col_begin;
     int col_end;
@@ -111,6 +110,7 @@ typedef struct {
 } CooChunk;
 
 typedef struct {
+    // CooChunk 元数据结构体所占内存空间大小
     int mem_size;
     CooChunk *chunk;
 } SizedCooChunk;
