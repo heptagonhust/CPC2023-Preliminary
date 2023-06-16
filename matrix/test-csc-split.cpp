@@ -5,8 +5,8 @@
 #include <ctime>
 #include <vector>
 
-#include "csc_matrix.cpp"
-#include "matrix_utils.cpp"
+#include "matrix/csc_matrix.h"
+#include "matrix/matrix_utils.h"
 #include "pcg_def.h"
 
 int main(void) {

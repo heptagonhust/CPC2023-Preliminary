@@ -2,7 +2,7 @@
 
 #define SLAVE_CORE_NUM 64
 void csc_spmv(SpmvPara *para, double *result) {
-    CRTS_athread_spawn(slave_csc_spmv, &para);
+    CRTS_athread_spawn(slave_csc_spmv, para);
     memset(result, 0, sizeof(double) * para->sp_col);
     int chunk_num = para->chunk_num;
     double *result_pool = para->result;
@@ -38,6 +38,9 @@ void spmv_para_from_splited_csc_matrix(
     int chunk_num = mat->chunk_num;
     para->chunk_num = chunk_num;
     para->chunks = mat->chunks;
+    for (int i = 0; i < 64; ++i) {
+        printf("chunk %d: %lx\n", i, mat->chunks[i]);
+    }
     CscChunk *chunk0 = mat->chunks[0];
     para->result = (double *)malloc(sizeof(double) * chunk_num * row_num);
     para->dma_over = (int *)malloc(sizeof(int) * chunk_num);

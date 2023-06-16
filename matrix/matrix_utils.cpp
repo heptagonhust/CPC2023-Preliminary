@@ -1,10 +1,9 @@
-#pragma once
-
 #include <algorithm>
 #include <cstdlib>
 #include <vector>
 
 #include "pcg_def.h"
+#include "matrix/matrix_utils.h"
 
 int count_ldu_matrix_nonzero_elements(const LduMatrix &ldu_matrix) {
     int result = 0;
@@ -69,7 +68,7 @@ void csr_to_csc(const CsrMatrix &csr_matrix, CscMatrix &csc_matrix) {
     csc_matrix.col_off[csc_matrix.cols - 1] -= last_column_size;
 }
 
-double rand_kernel(void) {
+static double rand_kernel(void) {
     if (rand() & 1) {
         return 0.;
     }
