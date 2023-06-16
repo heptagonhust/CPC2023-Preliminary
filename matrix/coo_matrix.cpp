@@ -1,6 +1,7 @@
 #include "coo_matrix.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -200,13 +201,11 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
             block.col_num = chunk.col_end - chunk.col_begin;
-            block.row_begin = result.chunks[j].chunk->col_begin;
-            block.data_size = 0;
+            block.row_begin = result.chunk_ranges[j].col_begin;
             block.block_off = 0;
         }
         chunk.blocks[chunk.block_num].col_num = 0;
         chunk.blocks[chunk.block_num].row_begin = col_num;
-        chunk.blocks[chunk.block_num].data_size = 0;
         chunk.blocks[chunk.block_num].block_off = data_size;
     }
 
@@ -233,23 +232,34 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
     std::sort(elements.begin(), elements.end());
 
+    int chunk_data_size = 0, last_chunk_idx = -1;
     for (auto element = elements.begin(); element != elements.end();
          ++element) {
+        if (element->chunk_idx != last_chunk_idx) {
+            chunk_data_size = 0;
+        }
+
         auto &chunk = *result.chunks[element->chunk_idx].chunk;
         auto &block = chunk.blocks[element->block_idx];
-        chunk.row_idx[block.data_size] = element->row;
-        chunk.col_idx[block.data_size] = element->column;
-        chunk.data[block.data_size] = element->value;
-        block.data_size += 1;
+        chunk.row_idx[chunk_data_size] = element->row - block.row_begin;
+        chunk.col_idx[chunk_data_size] = element->column - chunk.col_begin;
+        chunk.data[chunk_data_size] = element->value;
+        chunk_data_size += 1;
+        block.block_off += 1;
+
+        last_chunk_idx = element->chunk_idx;
     }
 
     for (int i = 0; i < chunk_num; ++i) {
         auto &chunk = *result.chunks[i].chunk;
-        chunk.blocks[0].block_off = 0;
         for (int j = 1; j < chunk.block_num; ++j) {
-            chunk.blocks[j].block_off =
-                chunk.blocks[j - 1].block_off + chunk.blocks[j - 1].data_size;
+            chunk.blocks[j].block_off += chunk.blocks[j - 1].block_off;
         }
+        for (int j = chunk.block_num - 1; j >= 1; --j) {
+            chunk.blocks[j].block_off -=
+                (chunk.blocks[j].block_off - chunk.blocks[j - 1].block_off);
+        }
+        chunk.blocks[0].block_off = 0;
     }
 
     return result;

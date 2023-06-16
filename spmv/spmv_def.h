@@ -89,7 +89,6 @@ typedef struct {
     int col_num;  // **这个** block 的列数
     // block 开始和结束的行序号（左闭右开）（暂时没有用到）
     int row_begin;
-    int data_size;  // **这个** block 中非零元素的个数(nn0)
     int block_off;
 } CooBlock;
 
