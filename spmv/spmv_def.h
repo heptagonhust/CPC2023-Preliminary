@@ -1,6 +1,8 @@
 #ifndef _SPMV_DEF_H_
 #define _SPMV_DEF_H_
 
+#include <cstdint>
+
 // 圣遗物
 #if 0
 /// 在矩阵分块计算中，每个 block 和 vec 的一个 slice 相乘， block 的列数等于 slice 的行数
@@ -98,8 +100,8 @@ typedef struct {
     int col_end;
     // chunk 开始和结束的行序号（左闭右开）（暂时没有用到）
 
-    int *row_idx;
-    int *col_idx;
+    uint16_t *row_idx;
+    uint16_t *col_idx;
     double *data;
 
     int block_num;
