@@ -1,6 +1,8 @@
 #include "coo_matrix.h"
 
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -193,8 +195,8 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
         chunk.col_begin = result.chunk_ranges[i].col_begin;
         chunk.col_end = chunk.col_begin + result.chunk_ranges[i].col_num;
-        chunk.row_idx = (int *)malloc(sizeof(int) * data_size);
-        chunk.col_idx = (int *)malloc(sizeof(int) * data_size);
+        chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * data_size);
+        chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * data_size);
         chunk.data = (double *)malloc(sizeof(double) * data_size);
         chunk.block_num = chunk_num;
 
@@ -241,8 +243,17 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
         auto &chunk = *result.chunks[element->chunk_idx].chunk;
         auto &block = chunk.blocks[element->block_idx];
-        chunk.row_idx[chunk_data_size] = element->row - block.row_begin;
-        chunk.col_idx[chunk_data_size] = element->column - chunk.col_begin;
+
+        // is uint16_t enough for indexes?
+        assert(element->row - block.row_begin >= 0);
+        assert(element->row - block.row_begin < 65536);
+        assert(element->column - chunk.col_begin >= 0);
+        assert(element->column - chunk.col_begin < 65536);
+
+        chunk.row_idx[chunk_data_size] =
+            (uint16_t)(element->row - block.row_begin);
+        chunk.col_idx[chunk_data_size] =
+            (uint16_t)(element->column - chunk.col_begin);
         chunk.data[chunk_data_size] = element->value;
         chunk_data_size += 1;
         block.block_off += 1;
