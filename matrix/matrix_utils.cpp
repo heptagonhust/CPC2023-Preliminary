@@ -70,10 +70,6 @@ int count_ldu_matrix_nonzero_elements(const LduMatrix &ldu_matrix) {
 // }
 
 static double rand_kernel(void) {
-    if (rand() & 1) {
-        return 0.;
-    }
-
     return (double)rand() / RAND_MAX * 10;
 }
 
@@ -89,14 +85,17 @@ void generate_ldu_matrix(LduMatrix &ldu_matrix, int size) {
     int k = 0;
     for (int i = 0; i < size; i++) {
         for (int j = i + 1; j < size; j++) {
-            ldu_matrix.lPtr[k] = i;
-            ldu_matrix.uPtr[k] = j;
-            ldu_matrix.lower[k] = rand_kernel();
-            ldu_matrix.upper[k] = rand_kernel();
-            k++;
+            if (rand() & 1) {
+                ldu_matrix.lPtr[k] = i;
+                ldu_matrix.uPtr[k] = j;
+                ldu_matrix.lower[k] = rand_kernel();
+                ldu_matrix.upper[k] = rand_kernel();
+                k++;
+            }
         }
         ldu_matrix.diag[i] = rand_kernel();
     }
+    ldu_matrix.faces = k;
 }
 
 std::vector<double> plain_matrix_from_csr(const CsrMatrix &csr_matrix) {

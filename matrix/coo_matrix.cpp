@@ -109,69 +109,108 @@ static void get_chunk_ranges(
     }
 }
 
+struct Element {
+    int row, column;
+    double value;
+
+    bool operator<(const Element &another) {
+        if (row != another.row) {
+            return row < another.row;
+        }
+
+        return column < another.column;
+    }
+};
+
+void give_away_elements(
+    const SplitedCooMatrix &result,
+    std::vector<Element> *block_elements,
+    Element *elements,
+    int data_size) {
+    for (int i = 0; i < data_size; ++i) {
+        Element *element = &elements[i];
+        int l, r;
+        int block_idx = -1, chunk_idx = -1;
+        l = 0, r = result.chunk_num;
+        for (;;) {
+            int m = l + (r - l) / 2;
+            auto begin = result.chunk_ranges[m].col_begin;
+            auto end = begin + result.chunk_ranges[m].col_num;
+            if (end <= element->row) {
+                l = m + 1;
+            } else if (element->row < begin) {
+                r = m;
+            } else {
+                block_idx = m;
+                break;
+            }
+        }
+
+        l = 0, r = result.chunk_num;
+        for (;;) {
+            int m = l + (r - l) / 2;
+            auto begin = result.chunk_ranges[m].col_begin;
+            auto end = begin + result.chunk_ranges[m].col_num;
+            if (end <= element->column) {
+                l = m + 1;
+            } else if (element->column < begin) {
+                r = m;
+            } else {
+                chunk_idx = m;
+                break;
+            }
+        }
+
+        block_elements[chunk_idx * result.chunk_num + block_idx].push_back(
+            *element);
+    }
+}
+
+void sort_block_elements(std::vector<Element> *block_elements, int chunk_num) {
+    for (int i = 0; i < chunk_num; ++i) {
+        std::sort(block_elements[i].begin(), block_elements[i].end());
+    }
+}
+
 extern SplitedCooMatrix
 ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     SplitedCooMatrix result;
 
     int col_num = ldu_matrix.cells;
 
-    typedef struct Element {
-        int row, column;
-        int chunk_idx, block_idx;
-        double value;
-
-        bool operator<(const Element &another) {
-            if (chunk_idx != another.chunk_idx) {
-                return chunk_idx < another.chunk_idx;
-            }
-
-            if (block_idx != another.block_idx) {
-                return block_idx < another.block_idx;
-            }
-
-            if (row != another.row) {
-                return row < another.row;
-            }
-
-            return column < another.column;
-        }
-    } Element;
-
-    std::vector<Element> elements;
-    elements.reserve(col_num / 20 * col_num);
+    Element *elements = (Element *)malloc(
+        sizeof(Element) * (ldu_matrix.cells + ldu_matrix.faces * 2));
+    int data_size = 0;
 
     int *col_size = (int *)malloc(sizeof(int) * col_num);
     memset(col_size, 0, sizeof(int) * col_num);
+
+    for (int i = 0; i < ldu_matrix.faces; i++) {
+        col_size[ldu_matrix.lPtr[i]] += 1;
+        col_size[ldu_matrix.uPtr[i]] += 1;
+    }
 
     for (int i = 0; i < ldu_matrix.faces; i++) {
         int row, column;
         double value;
 
         value = ldu_matrix.lower[i];
-        if (value != 0.0) {
-            row = ldu_matrix.uPtr[i];
-            column = ldu_matrix.lPtr[i];
-            elements.push_back((Element) {row, column, -1, -1, value});
-            col_size[column] += 1;
-        }
+        row = ldu_matrix.uPtr[i];
+        column = ldu_matrix.lPtr[i];
+        elements[data_size++] = (Element) {row, column, value};
 
         value = ldu_matrix.upper[i];
-        if (value != 0.0) {
-            row = ldu_matrix.lPtr[i];
-            column = ldu_matrix.uPtr[i];
-            elements.push_back((Element) {row, column, -1, -1, value});
-            col_size[column] += 1;
-        }
+        row = ldu_matrix.lPtr[i];
+        column = ldu_matrix.uPtr[i];
+        elements[data_size++] = (Element) {row, column, value};
     }
 
     for (int i = 0; i < ldu_matrix.cells; i++) {
         auto value = ldu_matrix.diag[i];
-        if (value != 0.0) {
-            auto row = i;
-            auto column = i;
-            elements.push_back((Element) {row, column, -1, -1, value});
-            col_size[column] += 1;
-        }
+        auto row = i;
+        auto column = i;
+        elements[data_size++] = (Element) {row, column, value};
+        col_size[column] += 1;
     }
 
     result.chunk_num = chunk_num;
@@ -188,16 +227,16 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
         auto &chunk = *result.chunks[i].chunk;
 
-        int data_size = 0;
+        int chunk_data_size = 0;
         for (int j = 0; j < result.chunk_ranges[i].col_num; ++j) {
-            data_size += col_size[j + result.chunk_ranges[i].col_begin];
+            chunk_data_size += col_size[j + result.chunk_ranges[i].col_begin];
         }
 
         chunk.col_begin = result.chunk_ranges[i].col_begin;
         chunk.col_end = chunk.col_begin + result.chunk_ranges[i].col_num;
-        chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * data_size);
-        chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * data_size);
-        chunk.data = (double *)malloc(sizeof(double) * data_size);
+        chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
+        chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
+        chunk.data = (double *)malloc(sizeof(double) * chunk_data_size);
         chunk.block_num = chunk_num;
 
         for (int j = 0; j < chunk.block_num; ++j) {
@@ -208,70 +247,43 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         }
         chunk.blocks[chunk.block_num].col_num = 0;
         chunk.blocks[chunk.block_num].row_begin = col_num;
-        chunk.blocks[chunk.block_num].block_off = data_size;
+        chunk.blocks[chunk.block_num].block_off = chunk_data_size;
     }
 
-    for (auto element = elements.begin(); element != elements.end();
-         ++element) {
-        int chunk_idx = -1;
-        int block_idx = -1;
-        for (int i = 0; i < chunk_num; ++i) {
-            auto begin = result.chunk_ranges[i].col_begin;
-            auto end = begin + result.chunk_ranges[i].col_num;
-            if (begin <= element->row && element->row < end) {
-                block_idx = i;
+    std::vector<Element> *block_elements =
+        new std::vector<Element>[chunk_num * chunk_num];
+
+    give_away_elements(result, block_elements, elements, data_size);
+    free(elements);
+
+    sort_block_elements(block_elements, chunk_num);
+
+    for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
+        auto &chunk = *result.chunks[chunk_idx].chunk;
+        int chunk_data_size = 0;
+        int chunk_block_off = 0;
+        for (int block_idx = 0; block_idx < chunk_num; ++block_idx) {
+            auto &block = chunk.blocks[block_idx];
+            auto &items = block_elements[chunk_idx * chunk_num + block_idx];
+            block.block_off = chunk_block_off;
+            chunk_block_off += items.size();
+            for (auto element = items.begin(); element != items.end();
+                 ++element) {
+                // is uint16_t enough for indexes?
+                assert(element->row - block.row_begin >= 0);
+                assert(element->row - block.row_begin < 65536);
+                assert(element->column - chunk.col_begin >= 0);
+                assert(element->column - chunk.col_begin < 65536);
+                chunk.row_idx[chunk_data_size] =
+                    (uint16_t)(element->row - block.row_begin);
+                chunk.col_idx[chunk_data_size] =
+                    (uint16_t)(element->column - chunk.col_begin);
+                chunk.data[chunk_data_size] = element->value;
+                chunk_data_size += 1;
             }
-            if (begin <= element->column && element->column < end) {
-                chunk_idx = i;
-            }
-            if (block_idx >= 0 && chunk_idx >= 0) {
-                break;
-            }
         }
-        element->chunk_idx = chunk_idx;
-        element->block_idx = block_idx;
     }
 
-    std::sort(elements.begin(), elements.end());
-
-    int chunk_data_size = 0, last_chunk_idx = -1;
-    for (auto element = elements.begin(); element != elements.end();
-         ++element) {
-        if (element->chunk_idx != last_chunk_idx) {
-            chunk_data_size = 0;
-        }
-
-        auto &chunk = *result.chunks[element->chunk_idx].chunk;
-        auto &block = chunk.blocks[element->block_idx];
-
-        // is uint16_t enough for indexes?
-        assert(element->row - block.row_begin >= 0);
-        assert(element->row - block.row_begin < 65536);
-        assert(element->column - chunk.col_begin >= 0);
-        assert(element->column - chunk.col_begin < 65536);
-
-        chunk.row_idx[chunk_data_size] =
-            (uint16_t)(element->row - block.row_begin);
-        chunk.col_idx[chunk_data_size] =
-            (uint16_t)(element->column - chunk.col_begin);
-        chunk.data[chunk_data_size] = element->value;
-        chunk_data_size += 1;
-        block.block_off += 1;
-
-        last_chunk_idx = element->chunk_idx;
-    }
-
-    for (int i = 0; i < chunk_num; ++i) {
-        auto &chunk = *result.chunks[i].chunk;
-        for (int j = 1; j < chunk.block_num; ++j) {
-            chunk.blocks[j].block_off += chunk.blocks[j - 1].block_off;
-        }
-        for (int j = chunk.block_num - 1; j >= 1; --j) {
-            chunk.blocks[j].block_off -=
-                (chunk.blocks[j].block_off - chunk.blocks[j - 1].block_off);
-        }
-        chunk.blocks[0].block_off = 0;
-    }
-
+    delete[] block_elements;
     return result;
 }
