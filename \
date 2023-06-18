@@ -4,8 +4,6 @@
 #include <crts.h>
 #include <swperf.h>
 
-#include "ltypf.h"
-
 typedef struct{
 	double *p;
 	double *z;
@@ -27,10 +25,8 @@ void slave_example(Para* para){
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
 	double beta = slavePara.beta;
 	int cells = slavePara.cells;
-//	penv_slave0_cycle_init();
-//	penv_slave1_dcache_access_init();
-//	penv_slave2_l1ic_access_init();
-//	ltyperf_init();
+	penv_slave0_cycle_init();
+	penv_slave1_dcache_access_init();
 	unsigned long icc1;	
 	//计算从核接收数组数据长度和接收位置
 	int len = cells / 64;
@@ -58,10 +54,8 @@ void slave_example(Para* para){
 	DMARplyCount++;
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
 //	penv_slave0_cycle_count(&icc1);
-//	penv_slave1_dcache_access_count(&icc1);
-//	penv_slave2_l1ic_access_count(&icc1);
-//	ltyperf_report();
-//	printf("%lu\n", icc1);
+	penv_slave1_dcache_access_count(&icc1);
+	printf("%lu\n", icc1);
 
 
 
