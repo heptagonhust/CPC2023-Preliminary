@@ -12,6 +12,7 @@
  *
  * @mtx: 待排序的 CscMatrix
  */
+
 static void csc_matrix_sort_elements(CscMatrix &mtx) {
     for (int i = 0; i < mtx.cols; ++i) {
         int size = mtx.col_off[i + 1] - mtx.col_off[i];

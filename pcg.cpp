@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "csc_matrix.h"
+#include "coo_matrix.h"
 
 #include "vector.h"
 #include "spmv.h"
@@ -57,22 +57,18 @@ PCGReturn pcg_solve(
     }
 
     // data structure transform
-    CscMatrix csc_matrix;
-    ldu_to_csc(ldu_matrix, csc_matrix);
-    SplitedCscMatrix splited_matrix = split_csc_matrix(csc_matrix, SLAVE_CORE_NUM);
-    for (int i = 0; i < splited_matrix.chunk_num; ++i) {
-        csc_chunk_pack(*splited_matrix.chunks[i]);
-    }
+    SplitedCooMatrix splited_matrix = ldu_to_splited_coo(ldu_matrix, SLAVE_CORE_NUM);
+
     // Spmv parameter generation
     SpmvPara para_Ax, para_Ap, para_Az;
-    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Ap, pcg.p, cells, cells);
-    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Az, pcg.z, cells, cells);
-    spmv_para_from_splited_csc_matrix(&splited_matrix, &para_Ax, x, cells, cells);
+    spmv_para_from_splited_coo_matrix(&splited_matrix, &para_Ap, pcg.p, cells, cells);
+    spmv_para_from_splited_coo_matrix(&splited_matrix, &para_Az, pcg.z, cells, cells);
+    spmv_para_from_splited_coo_matrix(&splited_matrix, &para_Ax, x, cells, cells);
 
     pcg_init_precondition_csc(csc_matrix, pre, M);
 
     // AX = A * X
-    csc_spmv(&para_Ax, pcg.Ax);
+    coo_spmv(&para_Ax, pcg.Ax);
     // r = b - A * x
     for (int i = 0; i < cells; i++) {
         pcg.r[i] = source[i] - pcg.Ax[i];
@@ -112,7 +108,7 @@ PCGReturn pcg_solve(
             }
 
             // Ax = A * p
-            csc_spmv(&para_Ap, pcg.Ax);
+            coo_spmv(&para_Ap, pcg.Ax);
 
             // alpha = tol_0 / tol_1 = (swap(r) * z) / ( swap(p) * A * p)
             pcg.alpha =
@@ -179,7 +175,7 @@ void pcg_precondition_csc_opt(
     double *gAPtr = (double *)malloc(cells * sizeof(double));
     memset(gAPtr, 0, cells * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
-        csc_spmv(&para_Az, gAPtr);
+        coo_spmv(&para_Az, gAPtr);
         precond_update_g_opt(gAPtr, wAPtr, M, cells, ntask);
         v_sub_dot_product_opt(
             cells,

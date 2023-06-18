@@ -7,18 +7,22 @@ void coo_spmv(SpmvPara *para, double *result) {
     int chunk_num = para->chunk_num;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
-    CscChunk *chunk0 = para->chunks[0];
+    CooChunk *chunk0 = para->chunks[0];
     int block_num_per_chunk = chunk0->block_num;
-    int pool_offset = 0;
     int reduced_cnt = 0;
     bool reduce_status[chunk_num * block_num_per_chunk];
     memset(&reduce_status, 0, chunk_num * block_num_per_chunk * sizeof(bool));
 
     while (reduced_cnt < chunk_num * block_num_per_chunk) {
         for (int block_idx = 0; block_idx < block_num_per_chunk; ++i) {
+            int row_begin = chunk0->blocks[block_idx].row_begin;
+            int row_num = chunk0->blocks[block_idx + 1].row_begin - chunk0->blocks[block_idx].row_begin;
             for (int chunk_idx = 0; chunk_idx < chunk_num; ++j) {
                 int flag_idx = chunk_num * block_idx + chunk_idx;
                 if (dma_over[chunk_idx] >= block_idx && !reduce_status[flag_idx]) {
+                    for (int off = 0; off < row_num; ++off) {
+                        result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off]
+                    }
                     reduce_status[flag_idx] = 1;
                     ++reduced_cnt;
                 }
@@ -26,28 +30,7 @@ void coo_spmv(SpmvPara *para, double *result) {
         }
     }
 
-    for (int i = 0; i < block_num_per_chunk; ++i) {
-        // 每次规约前要等待所有从核 DMA 完成
-        CscBlock *block = chunk0->blocks + i;
-        int row_begin = block->row_begin;
-        int row_num = block->row_end - row_begin;
-
-        reduced_cnt = 0;
-        
-        while (reduced_cnt < chunk_num) {
-            for (int j = 0; j < chunk_num; ++j) {
-                if (dma_over[j] >= i && !reduce_status[j]) {
-                    // wait for dma
-                    for (int k = 0; k < row_num; ++k, ++result) {
-                        result[row_begin + k] += result_pool[pool_offset + k * chunk_num + j];
-                    }
-                    reduce_status[j] = 1;
-                    ++reduced_cnt;
-                }
-            }
-        }
-        pool_offset += row_num * chunk_num;
-    }
+    CRTS_athread_join();
 }
 
 void spmv_para_from_splited_coo_matrix(
