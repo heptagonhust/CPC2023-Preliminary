@@ -1,6 +1,7 @@
 #include "spmv_slave.h"
 #include "crts.h"
 #include "slave_def.h"
+#include "swperf.h"
 #include "spmv/spmv_def.h"
 
 __thread_local crts_rply_t get_rply = 0;
@@ -36,6 +37,11 @@ inline static void slave_double_buffering_free(DoubleBuffering *buff) {
 
 
 void slave_coo_spmv(SpmvPara *para_mp) {
+    // profile
+    unsigned long icc = 0;
+    unsigned long wait_cycle = 0;
+    // penv_slave0_cycle_init();
+
     // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para_mp, sizeof(SpmvPara), &get_rply, get_cnt);
@@ -87,12 +93,20 @@ void slave_coo_spmv(SpmvPara *para_mp) {
             }
             
             last_idma_round = i - 1;
+                // penv_slave0_cycle_count(&icc);
+                // long int start_cycle = icc;
             DMA_WAIT(&put_rply, put_cnt);
+                // long int end_cycle = icc;
+                // wait_cycle += end_cycle - start_cycle;
             DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
             DMA_IPUT(block_result_mem, block_result_ldm, sizeof(double) * row_num, &put_rply, put_cnt);
         }
         last_idma_round = chunk_num - 1;
+            // penv_slave0_cycle_count(&icc);
+            // long int start_cycle = icc;
         DMA_WAIT(&put_rply, put_cnt);
+            // long int end_cycle = icc;
+            // wait_cycle += end_cycle - start_cycle;
         DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
         CRTS_pldm_free(data, chunk_data_size * sizeof(double));
         CRTS_pldm_free(row_idx, chunk_data_size * sizeof(uint16_t));
@@ -108,4 +122,7 @@ void slave_coo_spmv(SpmvPara *para_mp) {
     CRTS_pldm_free(vec, cols * sizeof(double));
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     // ldm_left_size = CRTS_pldm_get_free_size();
+
+    // penv_slave0_cycle_count(&icc);
+    // printf("Slave core %d: Total: %ld cycles, DMA wait: %ld cycles\n", CRTS_tid, icc, wait_cycle);
 }

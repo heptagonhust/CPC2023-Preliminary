@@ -16,7 +16,7 @@ EXE = pcg_solve
 all: $(EXE)
 
 $(EXE) : $(OBJECTS)
-	$(CXX) -mhybrid -o $(EXE) $^ -L. -lpcg_solve
+	$(CXX) -mhybrid -o $(EXE) $^ -L. -lpcg_solve libswperf.a
 
 main.o:	main.cpp pcg.h
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
