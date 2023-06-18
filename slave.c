@@ -30,8 +30,8 @@ void slave_example(Para* para){
 //	penv_slave0_cycle_init();
 //	penv_slave1_dcache_access_init();
 //	penv_slave2_l1ic_access_init();
-//	ltyperf_init();
-	unsigned long icc1;	
+	ltyperf_init();
+//	unsigned long icc1;	
 	//计算从核接收数组数据长度和接收位置
 	int len = cells / 64;
 	int rest = cells % 64;
@@ -60,7 +60,7 @@ void slave_example(Para* para){
 //	penv_slave0_cycle_count(&icc1);
 //	penv_slave1_dcache_access_count(&icc1);
 //	penv_slave2_l1ic_access_count(&icc1);
-//	ltyperf_report();
+	ltyperf_report();
 //	printf("%lu\n", icc1);
 
 

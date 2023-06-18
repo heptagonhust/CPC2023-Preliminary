@@ -10,7 +10,7 @@ EXE=pcg_solve
 all: $(EXE)
 
 $(EXE): main.o pcg.o slave.o
-	$(CXX) -mhybrid -o $(EXE) $^ -L. -lpcg_solve -lpcg_solve /home/export/online1/share/wxsc/penv/lib/libswperf.a
+	$(CXX) -mhybrid -o $(EXE) $^ -L. -lpcg_solve -lpcg_solve libswperf.a
 
 main.o:	main.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@ 
