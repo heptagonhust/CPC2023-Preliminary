@@ -14,7 +14,7 @@
 /// 
 /// * `para` - 从核计算所需参数，包含了从核计算 spmv 的各种参数，用于调用 `slave_csc_spmv`
 /// * `result` - spmv 的计算结果，应当是一个在调用本函数之前就分配好的数组
-void csc_spmv(SpmvPara *para, double *result);
+void coo_spmv(SpmvPara *para, double *result);
 
 /// 将划分好的 csc 矩阵转换成 spmv_para
 ///
@@ -26,7 +26,7 @@ void csc_spmv(SpmvPara *para, double *result);
 /// * `row_num` - 系数矩阵的行数
 /// * `col_num` - 系数矩阵的列数
 void spmv_para_from_splited_coo_matrix(
-    const SplitedCscMatrix *mat,
+    const SplitedCooMatrix *mat,
     SpmvPara *para,
     double *vec,
     int row_num,

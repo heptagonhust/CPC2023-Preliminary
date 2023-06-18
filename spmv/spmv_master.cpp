@@ -1,7 +1,7 @@
 #include "spmv_master.h"
 
 #define SLAVE_CORE_NUM 64
-void csc_spmv(SpmvPara *para, double *result) {
+void coo_spmv(SpmvPara *para, double *result) {
     CRTS_athread_spawn(slave_csc_spmv, para);
     memset(result, 0, sizeof(double) * para->sp_col);
     int chunk_num = para->chunk_num;
@@ -51,7 +51,7 @@ void csc_spmv(SpmvPara *para, double *result) {
 }
 
 void spmv_para_from_splited_coo_matrix(
-    const SplitedCscMatrix *mat,
+    const SplitedCooMatrix *mat,
     SpmvPara *para,
     double *vec,
     int row_num,
