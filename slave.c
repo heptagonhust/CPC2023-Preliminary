@@ -2,6 +2,7 @@
 #include "pcg_def.h"
 
 #include <crts.h>
+#include <swperf.h>
 
 typedef struct{
 	double *p;
@@ -24,7 +25,8 @@ void slave_example(Para* para){
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
 	double beta = slavePara.beta;
 	int cells = slavePara.cells;
-	
+	penv_slave0_cycle_init();
+	unsigned long icc1;	
 	//计算从核接收数组数据长度和接收位置
 	int len = cells / 64;
 	int rest = cells % 64;
@@ -50,4 +52,5 @@ void slave_example(Para* para){
 	CRTS_dma_iput(slavePara.p+addr, &p, len * sizeof(double), &DMARply);
 	DMARplyCount++;
 	CRTS_dma_wait_value(&DMARply, DMARplyCount);
+	penv_slave0_cycle_count(&icc1);
 }
