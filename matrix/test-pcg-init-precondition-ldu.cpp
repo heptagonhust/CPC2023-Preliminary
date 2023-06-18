@@ -27,10 +27,10 @@ void pcg_init_precondition_csr(
 
 void pcg_init_precondition_ldu(
     const LduMatrix &ldu_matrix,
-    double *pre,
+    double *preD,
     double *M) {
     for (int i = 0; i < ldu_matrix.cells; i++) {
-        pre[i] = 1.0 / ldu_matrix.diag[i];
+        preD[i] = 1.0 / ldu_matrix.diag[i];
         M[i] = ldu_matrix.diag[i];
     }
 }

@@ -2,26 +2,26 @@
 
 #define SLAVE_CORE_NUM 64
 void coo_spmv(SpmvPara *para, double *result) {
-    CRTS_athread_spawn(slave_csc_spmv, para);
+    CRTS_athread_spawn(slave_coo_spmv, para);
     memset(result, 0, sizeof(double) * para->sp_col);
     int chunk_num = para->chunk_num;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
-    CooChunk *chunk0 = para->chunks[0];
+    CooChunk *chunk0 = para->chunks[0].chunk;
     int block_num_per_chunk = chunk0->block_num;
     int reduced_cnt = 0;
     bool reduce_status[chunk_num * block_num_per_chunk];
     memset(&reduce_status, 0, chunk_num * block_num_per_chunk * sizeof(bool));
 
     while (reduced_cnt < chunk_num * block_num_per_chunk) {
-        for (int block_idx = 0; block_idx < block_num_per_chunk; ++i) {
+        for (int block_idx = 0; block_idx < block_num_per_chunk; ++block_idx) {
             int row_begin = chunk0->blocks[block_idx].row_begin;
             int row_num = chunk0->blocks[block_idx + 1].row_begin - chunk0->blocks[block_idx].row_begin;
-            for (int chunk_idx = 0; chunk_idx < chunk_num; ++j) {
+            for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
                 int flag_idx = chunk_num * block_idx + chunk_idx;
                 if (dma_over[chunk_idx] >= block_idx && !reduce_status[flag_idx]) {
                     for (int off = 0; off < row_num; ++off) {
-                        result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off]
+                        result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off];
                     }
                     reduce_status[flag_idx] = 1;
                     ++reduced_cnt;
@@ -49,7 +49,7 @@ void spmv_para_from_splited_coo_matrix(
     para->vec = vec;
     memcpy(para->chunks, mat->chunks, SLAVE_CORE_NUM * sizeof(SizedCooChunk));
     // all chunks have the same block size
-    CooChunk *chunk0 = mat->chunks[0];
+    CooChunk *chunk0 = mat->chunks[0].chunk;
     int max_block_row_num = 0;
     for (int i = 0; i < chunk0->block_num; ++i) {
         int num = chunk0->blocks[i+1].row_begin - chunk0->blocks[i].row_begin;

@@ -31,11 +31,11 @@ inline static void *slave_double_buffering_get(DoubleBuffering *buff) {
 }
 
 inline static void slave_double_buffering_free(DoubleBuffering *buff) {
-    CRTS_pldm_free(buff->buff, buff->size * 2);
+    CRTS_pldm_free(buff->buff[0], buff->size * 2);
 }
 
 
-void slave_csc_spmv(SpmvPara *para_mp) {
+void slave_coo_spmv(SpmvPara *para_mp) {
     // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para_mp, sizeof(SpmvPara), &get_rply, get_cnt);
@@ -55,51 +55,48 @@ void slave_csc_spmv(SpmvPara *para_mp) {
     int cols = chunk->col_end - chunk->col_begin;
     double *vec = (double *)CRTS_pldm_malloc(cols * sizeof(double)); 
     DMA_GET(vec, spmv_para.vec + chunk->col_begin, cols * sizeof(double), &get_rply, get_cnt);
-    int chunk_data_size = chunk->blocks[chunk->block_num].block_off - chunk->blocks[0].block_off;
+    int chunk_data_size = chunk->blocks[chunk->block_num].block_off;
+    if (chunk_data_size % 2) chunk_data_size++;
     int ldm_left_size = CRTS_pldm_get_free_size();
-
-    // chunk data
-    double *data;
-    uint16_t *row_idx, *col_idx;
 
     // ! just for debug
     // 单次传入即可完成
     if (ldm_left_size >= chunk_data_size * sizeof(double) * 1.5 + 64 * 3) {
-        data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
+        double *data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
         DMA_IGET(data, chunk->data, chunk_data_size * sizeof(double), &get_rply, get_cnt);
-        row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+        uint16_t *row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
         DMA_IGET(row_idx, chunk->row_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
-        col_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+        uint16_t *col_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
         DMA_IGET(col_idx, chunk->col_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
         DMA_WAIT(&get_rply, get_cnt);
 
         // block processing loop with double buffering
         int last_idma_round = -1;
         int *dma_over_mem = spmv_para.dma_over + id;
-        double *block_result_mem = spmv_para.result + id * ;
         for (int i = 0; i < chunk->block_num; ++i) {
             int row_num = chunk->blocks[i+1].row_begin - chunk->blocks[i].row_begin;
             int col_num = chunk->blocks[i].col_num;
+            int block_data_offset = chunk->blocks[i].block_off;
             int block_data_size = chunk->blocks[i+1].block_off - chunk->blocks[i].block_off;
             double *block_result_ldm = slave_double_buffering_get(&double_buff);
             memset(block_result_ldm, 0, row_num * sizeof(double));
             double *block_result_mem = spmv_para.result + spmv_para.chunk_num * chunk->blocks[i].row_begin + row_num * id;
 
             for (int j = 0; j < block_data_size; ++j) {
-                block_result_ldm[row_idx[i]] += data[i] * vec[col_idx[i]];
+                block_result_ldm[row_idx[block_data_offset + j]] += data[block_data_offset + j] * vec[col_idx[block_data_offset + j]];
             }
             
             last_idma_round = i - 1;
             DMA_WAIT(&put_rply, put_cnt);
-            DMA_IPUT(dma_over_mem, &last, sizeof(int), &put_rply, put_cnt);
+            DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
             DMA_IPUT(block_result_mem, block_result_ldm, sizeof(double) * row_num, &put_rply, put_cnt);
         }
         last_idma_round = chunk_num - 1;
         DMA_WAIT(&put_rply, put_cnt);
-        DMA_IPUT(dma_over_mem, &last, sizeof(int), &put_rply, put_cnt);
+        DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
         CRTS_pldm_free(data, chunk_data_size * sizeof(double));
-        CRTS_pldm_free(row_idx, chunk_data_size * sizeof(int));
-        CRTS_pldm_free(col_idx, chunk_data_size * sizeof(int));
+        CRTS_pldm_free(row_idx, chunk_data_size * sizeof(uint16_t));
+        CRTS_pldm_free(col_idx, chunk_data_size * sizeof(uint16_t));
         DMA_WAIT(&put_rply, put_cnt);
     }
 
@@ -109,4 +106,6 @@ void slave_csc_spmv(SpmvPara *para_mp) {
 
     slave_double_buffering_free(&double_buff);
     CRTS_pldm_free(vec, cols * sizeof(double));
+    CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
+    // ldm_left_size = CRTS_pldm_get_free_size();
 }

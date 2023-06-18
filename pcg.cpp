@@ -35,9 +35,10 @@ PCGReturn pcg_solve(
     pcg.x = x;
     pcg.source = source;
 
-    Precondition pre;
-    pre.preD = (double *)malloc(cells * sizeof(double));
-    pre.pre_mat_val = (double *)malloc((cells + faces * 2) * sizeof(double));
+    // Precondition pre;
+    // pre.preD = (double *)malloc(cells * sizeof(double));
+    // pre.pre_mat_val = (double *)malloc((cells + faces * 2) * sizeof(double));
+    double *preD = (double *)malloc(cells * sizeof(double));
 
     double *M = (double *)malloc(cells * sizeof(double));
 
@@ -57,7 +58,13 @@ PCGReturn pcg_solve(
     }
 
     // data structure transform
+    struct timeval tv;
+	gettimeofday(&tv,NULL);
+    double start = (double)(tv.tv_sec)+(double)(tv.tv_usec)*1e-6;
     SplitedCooMatrix splited_matrix = ldu_to_splited_coo(ldu_matrix, SLAVE_CORE_NUM);
+    gettimeofday(&tv,NULL);
+    double end = (double)(tv.tv_sec)+(double)(tv.tv_usec)*1e-6;
+    INFO("split time: %.4lfs\n", end - start);
 
     // Spmv parameter generation
     SpmvPara para_Ax, para_Ap, para_Az;
@@ -65,7 +72,7 @@ PCGReturn pcg_solve(
     spmv_para_from_splited_coo_matrix(&splited_matrix, &para_Az, pcg.z, cells, cells);
     spmv_para_from_splited_coo_matrix(&splited_matrix, &para_Ax, x, cells, cells);
 
-    pcg_init_precondition_csc(csc_matrix, pre, M);
+    pcg_init_precondition_ldu(ldu_matrix, preD, M);
 
     // AX = A * X
     coo_spmv(&para_Ax, pcg.Ax);
@@ -83,7 +90,7 @@ PCGReturn pcg_solve(
             if (iter == 0) {
                 // z = M(-1) * r
                 // M: diagonal matrix of csr matrix A : diagonal preprocess
-                pcg_precondition_csc_opt(para_Az, pre, pcg.r, pcg.z, M, ntask, cells);
+                pcg_precondition_coo_opt(para_Az, preD, pcg.r, pcg.z, M, ntask, cells);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // iter ==0 ; p = z
@@ -91,7 +98,7 @@ PCGReturn pcg_solve(
             } else {
                 pcg.sumprod_old = pcg.sumprod;
                 // z = M(-1) * r
-                pcg_precondition_csc_opt(para_Az, pre, pcg.r, pcg.z, M, ntask, cells);
+                pcg_precondition_coo_opt(para_Az, preD, pcg.r, pcg.z, M, ntask, cells);
                 // tol_0= swap(r) * z
                 pcg.sumprod = pcg_gsumProd_opt_zr(pcg.r, pcg.z, cells, ntask);
                 // beta = tol_1 / tol_0
@@ -130,15 +137,12 @@ PCGReturn pcg_solve(
         pcg.residual,
         iter);
 
+    free(preD);
     free_pcg(pcg);
-    free_precondition(pre);
-    free_csc_matrix(csc_matrix);
 
     spmv_para_free(&para_Ax);
     spmv_para_free(&para_Ap);
     spmv_para_free(&para_Az);
-
-    free_packed_splited_csc_matrix(&splited_matrix);
 
     PCGReturn pcg_return;
     pcg_return.residual = pcg.residual;
@@ -165,23 +169,23 @@ PCGReturn pcg_solve(
 
 void pcg_init_precondition_ldu(
     const LduMatrix &ldu_matrix,
-    double *pre,
+    double *preD,
     double *M) {
     for (int i = 0; i < ldu_matrix.cells; i++) {
-        pre[i] = 1.0 / ldu_matrix.diag[i];
+        preD[i] = 1.0 / ldu_matrix.diag[i];
         M[i] = ldu_matrix.diag[i];
     }
 }
 
-void pcg_precondition_csc_opt(
+void pcg_precondition_coo_opt(
     SpmvPara &para_Az,
-    const Precondition &pre,
+    double *preD,
     double *rAPtr,
     double *wAPtr,
     double *M,
     Slave_task *ntask,
     int cells) {
-    v_dot_product_opt(cells, pre.preD, rAPtr, wAPtr, ntask);
+    v_dot_product_opt(cells, preD, rAPtr, wAPtr, ntask);
     double *gAPtr = (double *)malloc(cells * sizeof(double));
     memset(gAPtr, 0, cells * sizeof(double));
     for (int deg = 1; deg < 2; deg++) {
@@ -191,7 +195,7 @@ void pcg_precondition_csc_opt(
             cells,
             rAPtr,
             gAPtr,
-            pre.preD,
+            preD,
             wAPtr,
             ntask);
         memset(gAPtr, 0, cells * sizeof(double));

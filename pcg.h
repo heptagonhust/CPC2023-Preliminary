@@ -23,20 +23,16 @@ PCGReturn pcg_solve(
     int maxIter,
     double tolerance,
     double normfactor);
-void pcg_init_precondition_csc(
-    const CsrMatrix &csr_matrix,
-    Precondition &pre,
-    double *M);
 void free_pcg(PCG &pcg);
 void free_csr_matrix(CsrMatrix &csr_matrix);
 void free_precondition(Precondition &pre);
-void pcg_init_precondition_csc(
-    const CscMatrix &csr_matrix,
-    Precondition &pre,
+void pcg_init_precondition_ldu(
+    const LduMatrix &ldu_matrix,
+    double *preD,
     double *M);
-void pcg_precondition_csc_opt(
+void pcg_precondition_coo_opt(
     SpmvPara &para_Az,
-    const Precondition &pre,
+    double *preD,
     double *rAPtr,
     double *wAPtr,
     double *M,

@@ -1,7 +1,7 @@
 #ifndef _SPMV_DEF_H_
 #define _SPMV_DEF_H_
 
-#include <cstdint>
+#include <stdint.h>
 
 // 圣遗物
 #if 0
