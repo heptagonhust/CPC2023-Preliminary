@@ -40,7 +40,7 @@ void slave_coo_spmv(SpmvPara *para_mp) {
     // profile
     unsigned long icc = 0;
     unsigned long wait_cycle = 0;
-    // penv_slave0_cycle_init();
+    penv_slave0_cycle_init();
 
     // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
@@ -84,29 +84,36 @@ void slave_coo_spmv(SpmvPara *para_mp) {
             int col_num = chunk->blocks[i].col_num;
             int block_data_offset = chunk->blocks[i].block_off;
             int block_data_size = chunk->blocks[i+1].block_off - chunk->blocks[i].block_off;
-            double *block_result_ldm = slave_double_buffering_get(&double_buff);
-            memset(block_result_ldm, 0, row_num * sizeof(double));
-            double *block_result_mem = spmv_para.result + spmv_para.chunk_num * chunk->blocks[i].row_begin + row_num * id;
-
-            for (int j = 0; j < block_data_size; ++j) {
-                block_result_ldm[row_idx[block_data_offset + j]] += data[block_data_offset + j] * vec[col_idx[block_data_offset + j]];
+            if (block_data_size == 0) {
+                CRTS_ssig_host((void *)spmv_para.reduce_status + i * chunk_num + id);
             }
+            else {
+                double *block_result_ldm = slave_double_buffering_get(&double_buff);
+                memset(block_result_ldm, 0, row_num * sizeof(double));
+                double *block_result_mem = spmv_para.result + spmv_para.chunk_num * chunk->blocks[i].row_begin + row_num * id;
+
+                for (int j = 0; j < block_data_size; ++j) {
+                    block_result_ldm[row_idx[block_data_offset + j]] += data[block_data_offset + j] * vec[col_idx[block_data_offset + j]];
+                }
             
-            last_idma_round = i - 1;
-                // penv_slave0_cycle_count(&icc);
-                // long int start_cycle = icc;
-            DMA_WAIT(&put_rply, put_cnt);
-                // long int end_cycle = icc;
-                // wait_cycle += end_cycle - start_cycle;
-            DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
-            DMA_IPUT(block_result_mem, block_result_ldm, sizeof(double) * row_num, &put_rply, put_cnt);
+                last_idma_round = i - 1;
+                    penv_slave0_cycle_count(&icc);
+                    unsigned long start_cycle = icc;
+                DMA_WAIT(&put_rply, put_cnt);
+                    penv_slave0_cycle_count(&icc);
+                    unsigned long end_cycle = icc;
+                    wait_cycle += end_cycle - start_cycle;
+                DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
+                DMA_IPUT(block_result_mem, block_result_ldm, sizeof(double) * row_num, &put_rply, put_cnt);
+            }
         }
         last_idma_round = chunk_num - 1;
-            // penv_slave0_cycle_count(&icc);
-            // long int start_cycle = icc;
+            penv_slave0_cycle_count(&icc);
+            unsigned long start_cycle = icc;
         DMA_WAIT(&put_rply, put_cnt);
-            // long int end_cycle = icc;
-            // wait_cycle += end_cycle - start_cycle;
+            penv_slave0_cycle_count(&icc);
+            unsigned long end_cycle = icc;
+            wait_cycle += end_cycle - start_cycle;
         DMA_IPUT(dma_over_mem, &last_idma_round, sizeof(int), &put_rply, put_cnt);
         CRTS_pldm_free(data, chunk_data_size * sizeof(double));
         CRTS_pldm_free(row_idx, chunk_data_size * sizeof(uint16_t));
@@ -123,6 +130,6 @@ void slave_coo_spmv(SpmvPara *para_mp) {
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     // ldm_left_size = CRTS_pldm_get_free_size();
 
-    // penv_slave0_cycle_count(&icc);
-    // printf("Slave core %d: Total: %ld cycles, DMA wait: %ld cycles\n", CRTS_tid, icc, wait_cycle);
+    penv_slave0_cycle_count(&icc);
+    printf("Slave core %d: Total: %lld cycles, DMA wait: %lld cycles\n", id, icc, wait_cycle);
 }

@@ -2,7 +2,7 @@
 #define _SPMV_DEF_H_
 
 #include <stdint.h>
-
+#include <stdbool.h>
 // 圣遗物
 #if 0
 /// 在矩阵分块计算中，每个 block 和 vec 的一个 slice 相乘， block 的列数等于 slice 的行数
@@ -126,6 +126,7 @@ typedef struct {
     int *dma_over;  // 指示从核是否已经将结果写到主存，共有 chunk_num 个
     double *vec;  // 右乘的向量
     SizedCooChunk chunks[SLAVE_CORE_NUM];
+    bool *reduce_status;
 } SpmvPara;
 
 #endif

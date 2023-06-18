@@ -1,18 +1,37 @@
 #include "spmv_master.h"
+#include "swperf.h"
+#include <crts.h>
 
 #define SLAVE_CORE_NUM 64
+
+int reduced_cnt;
+
+void* block_data_num_zero_handle(void *status) {
+    bool *flag = (bool *)status;
+    flag[0] = 1;
+    ++reduced_cnt;
+}
+
 void coo_spmv(SpmvPara *para, double *result) {
-    CRTS_athread_spawn(slave_coo_spmv, para);
-    memset(result, 0, sizeof(double) * para->sp_col);
+    CooChunk *chunk0 = para->chunks[0].chunk;
     int chunk_num = para->chunk_num;
+    int block_num_per_chunk = chunk0->block_num;
+    bool *reduce_status = (bool *)calloc(chunk_num * block_num_per_chunk, sizeof(bool));
+    para->reduce_status = reduce_status;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
-    CooChunk *chunk0 = para->chunks[0].chunk;
-    int block_num_per_chunk = chunk0->block_num;
-    int reduced_cnt = 0;
-    bool reduce_status[chunk_num * block_num_per_chunk];
-    memset(&reduce_status, 0, chunk_num * block_num_per_chunk * sizeof(bool));
+    reduced_cnt = 0;
 
+    CRTS_sig_user_init(block_data_num_zero_handle);
+    CRTS_athread_spawn(slave_coo_spmv, para);
+    memset(result, 0, sizeof(double) * para->sp_col);
+    
+    
+
+    //! test
+        unsigned long icc;
+        penv_host0_cycle_init();
+    //! test
     while (reduced_cnt < chunk_num * block_num_per_chunk) {
         for (int block_idx = 0; block_idx < block_num_per_chunk; ++block_idx) {
             int row_begin = chunk0->blocks[block_idx].row_begin;
@@ -29,7 +48,12 @@ void coo_spmv(SpmvPara *para, double *result) {
             }
         }
     }
+    //! test
+        penv_host0_cycle_count(&icc);
+        INFO("master reduce time: %d cycles\n", icc);
+    //! test
 
+    free(reduce_status);
     CRTS_athread_join();
 }
 
