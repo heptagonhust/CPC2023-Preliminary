@@ -147,19 +147,29 @@ PCGReturn pcg_solve(
 }
 
 
-// diagonal precondition, get matrix M^(-1) (diagonal matrix)
-// pre_mat_val: 非对角元     : csr_matrix中元素
-//              对角元素     : 0
-// preD       : csr_matrix中对角元素的倒数
-void pcg_init_precondition_csc(const CscMatrix &csc_matrix, Precondition &pre, double *M) {
-    for (int i = 0; i < csc_matrix.cols; i++) {
-        for (int j = csc_matrix.col_off[i]; j < csc_matrix.col_off[i + 1];
-             j++) {
-            if (csc_matrix.rows[j] == i) {
-                pre.preD[i] = 1.0 / csc_matrix.data[j];
-                M[i] = csc_matrix.data[j];
-            }
-        }
+// // diagonal precondition, get matrix M^(-1) (diagonal matrix)
+// // pre_mat_val: 非对角元     : csr_matrix中元素
+// //              对角元素     : 0
+// // preD       : csr_matrix中对角元素的倒数
+// void pcg_init_precondition_csc(const CscMatrix &csc_matrix, Precondition &pre, double *M) {
+//     for (int i = 0; i < csc_matrix.cols; i++) {
+//         for (int j = csc_matrix.col_off[i]; j < csc_matrix.col_off[i + 1];
+//              j++) {
+//             if (csc_matrix.rows[j] == i) {
+//                 pre.preD[i] = 1.0 / csc_matrix.data[j];
+//                 M[i] = csc_matrix.data[j];
+//             }
+//         }
+//     }
+// }
+
+void pcg_init_precondition_ldu(
+    const LduMatrix &ldu_matrix,
+    double *pre,
+    double *M) {
+    for (int i = 0; i < ldu_matrix.cells; i++) {
+        pre[i] = 1.0 / ldu_matrix.diag[i];
+        M[i] = ldu_matrix.diag[i];
     }
 }
 
