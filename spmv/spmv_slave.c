@@ -10,8 +10,6 @@ __thread_local unsigned int get_cnt = 0;
 __thread_local crts_rply_t put_rply = 0;
 __thread_local unsigned int put_cnt = 0;
 
-__thread_local crts_rply_t reduce_flag_rply = 0;
-__thread_local unsigned int reduce_flag_cnt = 0;
 
 // 双缓冲设计
 typedef struct {
@@ -55,6 +53,9 @@ void slave_coo_spmv(SpmvPara *para_mp) {
     CooChunk *chunk = (CooChunk *)CRTS_pldm_malloc(spmv_para.chunks[id].mem_size);
     DMA_GET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
 
+    int *flag_array = (int *)CRTS_pldm_malloc(chunk->block_num * sizeof(int));
+    for (int i = 0; i < chunk->block_num; ++i)
+        flag_array[i] = 1;
     // 元数据DMA完成，进行内存容量分析
     // 先分配必须的空间
     // Double Buffer space
@@ -100,10 +101,7 @@ void slave_coo_spmv(SpmvPara *para_mp) {
             }
             else {
                 if (zero_block_dma_ready_flag == 1) {
-                    int flag_array[zero_block_dma_num];
-                    for (int j = 0; j < zero_block_dma_num; ++j)
-                        flag_array[j] = 1;
-                    DMA_IPUT(spmv_para.reduce_status + id * chunk->block_num + zero_element_block_start, &flag_array, zero_block_dma_num * sizeof(int), &reduce_flag_rply, reduce_flag_cnt);
+                    DMA_IPUT(spmv_para.reduce_status + id * chunk->block_num + zero_element_block_start, flag_array, zero_block_dma_num * sizeof(int), &put_rply, put_cnt);
                     zero_block_dma_ready_flag = 0;
                     zero_block_dma_num = 0;
                 }
@@ -127,10 +125,7 @@ void slave_coo_spmv(SpmvPara *para_mp) {
             }
         }
         if (zero_block_dma_ready_flag == 1) {
-            int flag_array[zero_block_dma_num];
-            for (int j = 0; j < zero_block_dma_num; ++j)
-                flag_array[j] = 1;
-            DMA_IPUT(spmv_para.reduce_status + id * chunk->block_num + zero_element_block_start, &flag_array, zero_block_dma_num * sizeof(int), &reduce_flag_rply, reduce_flag_cnt);
+            DMA_IPUT(spmv_para.reduce_status + id * chunk->block_num + zero_element_block_start, flag_array, zero_block_dma_num * sizeof(int), &put_rply, put_cnt);
             zero_block_dma_ready_flag = 0;
             zero_block_dma_num = 0;
         }
@@ -146,7 +141,6 @@ void slave_coo_spmv(SpmvPara *para_mp) {
         CRTS_pldm_free(row_idx, chunk_data_size * sizeof(uint16_t));
         CRTS_pldm_free(col_idx, chunk_data_size * sizeof(uint16_t));
         DMA_WAIT(&put_rply, put_cnt);
-        DMA_WAIT(&reduce_flag_rply, reduce_flag_cnt);
     }
 
     else {
@@ -156,8 +150,9 @@ void slave_coo_spmv(SpmvPara *para_mp) {
     slave_double_buffering_free(&double_buff);
     CRTS_pldm_free(vec, cols * sizeof(double));
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
+    CRTS_pldm_free(flag_array, chunk->block_num * sizeof(int));
     // ldm_left_size = CRTS_pldm_get_free_size();
 
     penv_slave0_cycle_count(&icc);
-    printf("Slave core %d: Total: %lld cycles, DMA wait: %lld cycles\n", id, icc, wait_cycle);
+    // printf("Slave core %d: Total: %lld cycles, DMA wait: %lld cycles\n", id, icc, wait_cycle);
 }

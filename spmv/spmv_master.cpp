@@ -6,7 +6,6 @@
 
 
 void coo_spmv(SpmvPara *para, double *result) {
-    INFO("LINE 9\n");
     CooChunk *chunk0 = para->chunks[0].chunk;
     int chunk_num = para->chunk_num;
     int block_num_per_chunk = chunk0->block_num;
@@ -17,15 +16,20 @@ void coo_spmv(SpmvPara *para, double *result) {
     int *dma_over = para->dma_over;
     int reduced_cnt = 0;
 
-    INFO("LINE 19\n");
     CRTS_athread_spawn(slave_coo_spmv, para);
-    INFO("LINE 21\n");
     memset(result, 0, sizeof(double) * para->sp_col);
-    INFO("LINE 23\n");
 
     //! test
-        unsigned long icc;
+        unsigned long icc = 0;
+        unsigned long calcu_cycles = 0;
+        int cnt = 0, cnt_1 = 0;
         penv_host0_cycle_init();
+        for (int i = 0; i < chunk_num; ++i) {
+            for (int j = 0; j < block_num_per_chunk; ++j) {
+                if (para->chunks[i].chunk->blocks[j + 1].block_off - para->chunks[i].chunk->blocks[j].block_off == 0)
+                    ++cnt_1;
+            }
+        }
     //! test
     while (reduced_cnt < chunk_num * block_num_per_chunk) {
         reduced_cnt = 0;
@@ -35,9 +39,14 @@ void coo_spmv(SpmvPara *para, double *result) {
             for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
                 int flag_idx = block_num_per_chunk * chunk_idx + block_idx;
                 if (dma_over[chunk_idx] >= block_idx && reduce_status[flag_idx] == 0) {
+        penv_host0_cycle_count(&icc);
+        unsigned long start_time = icc;
+                    cnt++;
                     for (int off = 0; off < row_num; ++off) {
                         result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off];
                     }
+        penv_host0_cycle_count(&icc);
+        calcu_cycles += icc - start_time;
                     reduce_status[flag_idx] = 1;
                 }
                 if (reduce_status[flag_idx] == 1) reduced_cnt++;
@@ -45,10 +54,9 @@ void coo_spmv(SpmvPara *para, double *result) {
         }
         // printf("reduce cnt: %d\n", reduced_cnt);
     }
-    INFO("LINE 44\n");
     //! test
         penv_host0_cycle_count(&icc);
-        INFO("master reduce time: %d cycles\n", icc);
+        INFO("master total time: %d cycles, calculate time: %d cycles, block_reduce_cnt: %d / %d\n", icc, calcu_cycles, cnt, cnt_1);
     //! test
 
     free(reduce_status);
