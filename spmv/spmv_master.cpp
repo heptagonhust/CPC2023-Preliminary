@@ -6,17 +6,22 @@
 
 
 void coo_spmv(SpmvPara *para, double *result) {
+    INFO("LINE 9\n");
     CooChunk *chunk0 = para->chunks[0].chunk;
     int chunk_num = para->chunk_num;
     int block_num_per_chunk = chunk0->block_num;
-    int *reduce_status = (int *)calloc(chunk_num * block_num_per_chunk, sizeof(int));
+    int *reduce_status = (int *)malloc(chunk_num * block_num_per_chunk * sizeof(int));
+    memset(reduce_status, 0, chunk_num * block_num_per_chunk * sizeof(int));
     para->reduce_status = reduce_status;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
     int reduced_cnt = 0;
 
+    INFO("LINE 19\n");
     CRTS_athread_spawn(slave_coo_spmv, para);
+    INFO("LINE 21\n");
     memset(result, 0, sizeof(double) * para->sp_col);
+    INFO("LINE 23\n");
 
     //! test
         unsigned long icc;
@@ -28,17 +33,19 @@ void coo_spmv(SpmvPara *para, double *result) {
             int row_begin = chunk0->blocks[block_idx].row_begin;
             int row_num = chunk0->blocks[block_idx + 1].row_begin - chunk0->blocks[block_idx].row_begin;
             for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
-                int flag_idx = chunk_num * block_idx + chunk_idx;
-                if (dma_over[chunk_idx] >= block_idx && !reduce_status[flag_idx]) {
+                int flag_idx = block_num_per_chunk * chunk_idx + block_idx;
+                if (dma_over[chunk_idx] >= block_idx && reduce_status[flag_idx] == 0) {
                     for (int off = 0; off < row_num; ++off) {
                         result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off];
                     }
                     reduce_status[flag_idx] = 1;
                 }
-                if (reduce_status[flag_idx] == 1) ++reduced_cnt;
+                if (reduce_status[flag_idx] == 1) reduced_cnt++;
             }
         }
+        // printf("reduce cnt: %d\n", reduced_cnt);
     }
+    INFO("LINE 44\n");
     //! test
         penv_host0_cycle_count(&icc);
         INFO("master reduce time: %d cycles\n", icc);
