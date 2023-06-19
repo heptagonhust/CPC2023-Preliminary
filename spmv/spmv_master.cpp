@@ -6,6 +6,8 @@
 
 int reduced_cnt;
 
+extern "C" void CRTS_sig_user_init(void *);
+
 void* block_data_num_zero_handle(void *status) {
     bool *flag = (bool *)status;
     flag[0] = 1;
@@ -22,11 +24,9 @@ void coo_spmv(SpmvPara *para, double *result) {
     int *dma_over = para->dma_over;
     reduced_cnt = 0;
 
-    CRTS_sig_user_init(block_data_num_zero_handle);
+    CRTS_sig_user_init((void *)block_data_num_zero_handle);
     CRTS_athread_spawn(slave_coo_spmv, para);
     memset(result, 0, sizeof(double) * para->sp_col);
-    
-    
 
     //! test
         unsigned long icc;
