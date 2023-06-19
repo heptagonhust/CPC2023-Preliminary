@@ -122,23 +122,144 @@ struct Element {
     }
 };
 
+#ifdef USE_SIMD
+    #include <immintrin.h>
+
+void println256(const char *info, __m256i vec) {
+    int *arr = (int *)&vec;
+    fprintf(stderr, "%s ", info);
+    for (int i = 0; i < 8; ++i) {
+        fprintf(stderr, "%d ", arr[i]);
+    }
+    fprintf(stderr, "\n");
+}
+
+void simd_binary_search(
+    int *res,
+    int *col_begin,
+    int *col_end,
+    int size,
+    int *keys) {
+    __m256i one = _mm256_set1_epi32(1);
+    __m256i all_ones = _mm256_set1_epi32(-1);
+
+    __m256i key = _mm256_loadu_si256((__m256i *)keys);
+    __m256i left = _mm256_set1_epi32(0);
+    __m256i right = _mm256_set1_epi32(size);
+    __m256i result = _mm256_set1_epi32(-1);
+    __m256i mask3 = _mm256_set1_epi32(0);
+
+    while (_mm256_movemask_epi8(mask3) != -1) {
+        __m256i mid = _mm256_add_epi32(
+            left,
+            _mm256_srai_epi32(_mm256_sub_epi32(right, left), 1));
+        __m256i begin = _mm256_i32gather_epi32(col_begin, mid, sizeof(int));
+        __m256i end = _mm256_i32gather_epi32(col_end, mid, sizeof(int));
+        __m256i mask1 =
+            _mm256_xor_si256(_mm256_cmpgt_epi32(end, key), all_ones);
+        __m256i mask2 = _mm256_cmpgt_epi32(begin, key);
+        mask3 = _mm256_xor_si256(_mm256_or_si256(mask1, mask2), all_ones);
+        left = _mm256_blendv_epi8(left, _mm256_add_epi32(mid, one), mask1);
+        right = _mm256_blendv_epi8(right, mid, mask2);
+        result = _mm256_blendv_epi8(result, mid, mask3);
+    }
+
+    _mm256_storeu_si256((__m256i *)res, result);
+}
+
+#else
+
+void naive_binary_search(
+    int *res,
+    int *col_begin,
+    int *col_end,
+    int size,
+    int *keys) {
+    for (int i = 0; i < 8; ++i) {
+        int l = 0, r = size;
+        for (;;) {
+            int m = l + (r - l) / 2;
+            auto begin = col_begin[m];
+            auto end = col_end[m];
+            if (end <= keys[i]) {
+                l = m + 1;
+            } else if (keys[i] < begin) {
+                r = m;
+            } else {
+                res[i] = m;
+                break;
+            }
+        }
+    }
+}
+#endif
+
 void give_away_elements(
     const SplitedCooMatrix &result,
     std::vector<Element> *block_elements,
-    Element *elements,
-    int data_size) {
-    for (int i = 0; i < data_size; ++i) {
-        Element *element = &elements[i];
+    int data_size,
+    int *elements_row,
+    int *elements_column,
+    double *elements_value) {
+    int *col_begin = (int *)malloc(sizeof(int) * result.chunk_num);
+    int *col_end = (int *)malloc(sizeof(int) * result.chunk_num);
+    for (int i = 0; i < result.chunk_num; ++i) {
+        col_begin[i] = result.chunk_ranges[i].col_begin;
+        col_end[i] = col_begin[i] + result.chunk_ranges[i].col_num;
+    }
+
+    int i;
+    for (i = 0; i < data_size / 8 * 8; i += 8) {
+        int block_idx[8];
+        int chunk_idx[8];
+#ifdef USE_SIMD
+        simd_binary_search(
+            block_idx,
+            col_begin,
+            col_end,
+            result.chunk_num,
+            &elements_row[i]);
+        simd_binary_search(
+            chunk_idx,
+            col_begin,
+            col_end,
+            result.chunk_num,
+            &elements_column[i]);
+#else
+        naive_binary_search(
+            block_idx,
+            col_begin,
+            col_end,
+            result.chunk_num,
+            &elements_row[i]);
+        naive_binary_search(
+            chunk_idx,
+            col_begin,
+            col_end,
+            result.chunk_num,
+            &elements_column[i]);
+#endif
+
+        for (int j = 0; j < 8; ++j) {
+            block_elements[chunk_idx[j] * result.chunk_num + block_idx[j]]
+                .push_back((Element) {
+                    elements_row[i + j],
+                    elements_column[i + j],
+                    elements_value[i + j]});
+        }
+    }
+
+    for (; i < data_size; ++i) {
         int l, r;
         int block_idx = -1, chunk_idx = -1;
         l = 0, r = result.chunk_num;
         for (;;) {
             int m = l + (r - l) / 2;
-            auto begin = result.chunk_ranges[m].col_begin;
-            auto end = begin + result.chunk_ranges[m].col_num;
-            if (end <= element->row) {
+            auto begin = col_begin[m];
+            auto end = col_end[m];
+            if (end <= elements_row[i]) {
                 l = m + 1;
-            } else if (element->row < begin) {
+            } else if (elements_row[i] < begin) {
                 r = m;
             } else {
                 block_idx = m;
@@ -149,11 +270,11 @@ void give_away_elements(
         l = 0, r = result.chunk_num;
         for (;;) {
             int m = l + (r - l) / 2;
-            auto begin = result.chunk_ranges[m].col_begin;
-            auto end = begin + result.chunk_ranges[m].col_num;
-            if (end <= element->column) {
+            auto begin = col_begin[m];
+            auto end = col_end[m];
+            if (end <= elements_column[i]) {
                 l = m + 1;
-            } else if (element->column < begin) {
+            } else if (elements_column[i] < begin) {
                 r = m;
             } else {
                 chunk_idx = m;
@@ -162,8 +283,11 @@ void give_away_elements(
         }
 
         block_elements[chunk_idx * result.chunk_num + block_idx].push_back(
-            *element);
+            (Element) {elements_row[i], elements_column[i], elements_value[i]});
     }
+
+    free(col_begin);
+    free(col_end);
 }
 
 void sort_block_elements(std::vector<Element> *block_elements, int chunk_num) {
@@ -178,8 +302,12 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
     int col_num = ldu_matrix.cells;
 
-    Element *elements = (Element *)malloc(
-        sizeof(Element) * (ldu_matrix.cells + ldu_matrix.faces * 2));
+    int *elements_row =
+        (int *)malloc(sizeof(int) * (ldu_matrix.cells + ldu_matrix.faces * 2));
+    int *elements_column =
+        (int *)malloc(sizeof(int) * (ldu_matrix.cells + ldu_matrix.faces * 2));
+    double *elements_value = (double *)malloc(
+        sizeof(double) * (ldu_matrix.cells + ldu_matrix.faces * 2));
     int data_size = 0;
 
     int *col_size = (int *)malloc(sizeof(int) * col_num);
@@ -197,19 +325,28 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         value = ldu_matrix.lower[i];
         row = ldu_matrix.uPtr[i];
         column = ldu_matrix.lPtr[i];
-        elements[data_size++] = (Element) {row, column, value};
+        elements_row[data_size] = row;
+        elements_column[data_size] = column;
+        elements_value[data_size] = value;
+        data_size += 1;
 
         value = ldu_matrix.upper[i];
         row = ldu_matrix.lPtr[i];
         column = ldu_matrix.uPtr[i];
-        elements[data_size++] = (Element) {row, column, value};
+        elements_row[data_size] = row;
+        elements_column[data_size] = column;
+        elements_value[data_size] = value;
+        data_size += 1;
     }
 
     for (int i = 0; i < ldu_matrix.cells; i++) {
         auto value = ldu_matrix.diag[i];
         auto row = i;
         auto column = i;
-        elements[data_size++] = (Element) {row, column, value};
+        elements_row[data_size] = row;
+        elements_column[data_size] = column;
+        elements_value[data_size] = value;
+        data_size += 1;
         col_size[column] += 1;
     }
 
@@ -253,8 +390,16 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     std::vector<Element> *block_elements =
         new std::vector<Element>[chunk_num * chunk_num];
 
-    give_away_elements(result, block_elements, elements, data_size);
-    free(elements);
+    give_away_elements(
+        result,
+        block_elements,
+        data_size,
+        elements_row,
+        elements_column,
+        elements_value);
+    free(elements_row);
+    free(elements_column);
+    free(elements_value);
 
     sort_block_elements(block_elements, chunk_num);
 
