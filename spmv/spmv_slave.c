@@ -92,13 +92,19 @@ printf("LINE 80\n");
         if (id == 0) {
 printf("LINE 89\n");
         }
-                void *reduce_flag = spmv_para.reduce_status + i * chunk_num + id;
+                int *reduce_flag = spmv_para.reduce_status + i * chunk_num + id;
+                    //! test
                     penv_slave0_cycle_count(&icc);
                     unsigned long start_cycle = icc;
+                    //! test
                 CRTS_ssig_host(reduce_flag);
+                int flag = 1;
+                DMA_IPUT(reduce_flag, &flag, sizeof(int), &put_rply, put_cnt);
+                    //! test
                     penv_slave0_cycle_count(&icc);
                     unsigned long end_cycle = icc;
                     signal_cycle += end_cycle - start_cycle;
+                    //! test
         if (id == 0) {
 printf("LINE 92\n");
         }

@@ -126,7 +126,7 @@ typedef struct {
     int *dma_over;  // 指示从核是否已经将结果写到主存，共有 chunk_num 个
     double *vec;  // 右乘的向量
     SizedCooChunk chunks[SLAVE_CORE_NUM];
-    bool *reduce_status;
+    int *reduce_status;
 } SpmvPara;
 
 #endif

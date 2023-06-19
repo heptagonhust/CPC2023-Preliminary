@@ -4,27 +4,17 @@
 
 #define SLAVE_CORE_NUM 64
 
-int reduced_cnt;
-
-extern "C" void CRTS_sig_user_init(void *);
-
-void* block_data_num_zero_handle(void *status) {
-    bool *flag = (bool *)status;
-    flag[0] = 1;
-    ++reduced_cnt;
-}
 
 void coo_spmv(SpmvPara *para, double *result) {
     CooChunk *chunk0 = para->chunks[0].chunk;
     int chunk_num = para->chunk_num;
     int block_num_per_chunk = chunk0->block_num;
-    bool *reduce_status = (bool *)calloc(chunk_num * block_num_per_chunk, sizeof(bool));
+    int *reduce_status = (int *)calloc(chunk_num * block_num_per_chunk, sizeof(int));
     para->reduce_status = reduce_status;
     double *result_pool = para->result;
     int *dma_over = para->dma_over;
-    reduced_cnt = 0;
+    int reduced_cnt = 0;
 
-    CRTS_sig_user_init((void *)block_data_num_zero_handle);
     CRTS_athread_spawn(slave_coo_spmv, para);
     memset(result, 0, sizeof(double) * para->sp_col);
 
@@ -33,6 +23,7 @@ void coo_spmv(SpmvPara *para, double *result) {
         penv_host0_cycle_init();
     //! test
     while (reduced_cnt < chunk_num * block_num_per_chunk) {
+        reduced_cnt = 0;
         for (int block_idx = 0; block_idx < block_num_per_chunk; ++block_idx) {
             int row_begin = chunk0->blocks[block_idx].row_begin;
             int row_num = chunk0->blocks[block_idx + 1].row_begin - chunk0->blocks[block_idx].row_begin;
@@ -43,8 +34,8 @@ void coo_spmv(SpmvPara *para, double *result) {
                         result[row_begin + off] += result_pool[chunk_num * row_begin + chunk_idx * row_num + off];
                     }
                     reduce_status[flag_idx] = 1;
-                    ++reduced_cnt;
                 }
+                if (reduce_status[flag_idx] == 1) ++reduced_cnt;
             }
         }
     }
@@ -68,6 +59,7 @@ void spmv_para_from_splited_coo_matrix(
     para->sp_row = row_num;
     para->sp_col = col_num;
     para->result = (double *)malloc(sizeof(double) * chunk_num * row_num);
+    memset(para->result, 0, sizeof(double) * chunk_num * row_num);
     para->dma_over = (int *)malloc(sizeof(int) * chunk_num);
     memset(para->dma_over, 0, sizeof(int) * chunk_num);
     para->vec = vec;
