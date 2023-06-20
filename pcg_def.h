@@ -18,8 +18,8 @@ typedef struct {
 #endif
 
 typedef struct {
-    int col_begin;
-    int col_num;
+    int row_begin;
+    int row_num;
     int size;
 } CooChunkRange;
 

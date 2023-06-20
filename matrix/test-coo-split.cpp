@@ -32,6 +32,12 @@ int main(void) {
 
         free_csr_matrix(csr_matrix);
 
+#ifdef SHOW_FIRST_100_ELEMENTS
+        for (int i = 0; i < 100; ++i) {
+            fprintf(stderr, "%f %f\n", plain_csr[i], plain_splited[i]);
+        }
+#endif
+
         assert(plain_csr == plain_splited);
     }
 

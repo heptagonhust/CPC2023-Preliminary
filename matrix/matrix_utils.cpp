@@ -70,10 +70,6 @@ int count_ldu_matrix_nonzero_elements(const LduMatrix &ldu_matrix) {
 // }
 
 static double rand_kernel(void) {
-    if (rand() & 1) {
-        return 0.;
-    }
-
     return (double)rand() / RAND_MAX * 10;
 }
 
@@ -89,14 +85,17 @@ void generate_ldu_matrix(LduMatrix &ldu_matrix, int size) {
     int k = 0;
     for (int i = 0; i < size; i++) {
         for (int j = i + 1; j < size; j++) {
-            ldu_matrix.lPtr[k] = i;
-            ldu_matrix.uPtr[k] = j;
-            ldu_matrix.lower[k] = rand_kernel();
-            ldu_matrix.upper[k] = rand_kernel();
-            k++;
+            if (rand() & 1) {
+                ldu_matrix.lPtr[k] = i;
+                ldu_matrix.uPtr[k] = j;
+                ldu_matrix.lower[k] = rand_kernel();
+                ldu_matrix.upper[k] = rand_kernel();
+                k++;
+            }
         }
         ldu_matrix.diag[i] = rand_kernel();
     }
+    ldu_matrix.faces = k;
 }
 
 std::vector<double> plain_matrix_from_csr(const CsrMatrix &csr_matrix) {
@@ -210,10 +209,11 @@ plain_matrix_from_splited_coo(const SplitedCooMatrix &splited_matrix) {
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
             auto data_size = chunk.blocks[j + 1].block_off - block.block_off;
-            auto row_begin = block.row_begin;
-            auto row_end = chunk.blocks[j + 1].row_begin;
-            auto col_begin = chunk.col_begin;
-            auto col_end = chunk.col_end;
+
+            auto col_begin = block.col_begin;
+            auto col_end = chunk.blocks[j + 1].col_begin;
+            auto row_begin = chunk.row_begin;
+            auto row_end = chunk.row_end;
 
             for (int u = row_begin; u < row_end; ++u) {
                 for (int v = col_begin; v < col_end; ++v) {

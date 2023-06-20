@@ -88,17 +88,17 @@ typedef struct {
 #define SLAVE_CORE_NUM 64
 
 typedef struct {
-    int col_num;  // **这个** block 的列数
+    int row_num;  // **这个** block 的列数
     // block 开始和结束的行序号（左闭右开）（暂时没有用到）
-    int row_begin;
+    int col_begin;
     int block_off;
 } CooBlock;
 
 // 将一个 chunk 分成 block_num 个 block
 typedef struct {
     // chunk 开始和结束的列序号（左闭右开）
-    int col_begin;
-    int col_end;
+    int row_begin;
+    int row_end;
     // chunk 开始和结束的行序号（左闭右开）（暂时没有用到）
 
     uint16_t *row_idx;
