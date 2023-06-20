@@ -6,3 +6,4 @@ crts.h
 fake-include/
 perf.data
 perf.data.old
+core
