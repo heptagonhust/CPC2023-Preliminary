@@ -3,6 +3,7 @@
 
 #include "spmv_def.h"
 
+#if 0
 typedef struct {
     int col_begin;
     int col_num;
@@ -14,6 +15,19 @@ typedef struct {
     CscChunkRange *chunk_ranges;
     CscChunk **chunks;
 } SplitedCscMatrix;
+#endif
+
+typedef struct {
+    int row_begin;
+    int row_num;
+    int size;
+} CooChunkRange;
+
+typedef struct {
+    int chunk_num;
+    CooChunkRange *chunk_ranges;
+    SizedCooChunk *chunks;
+} SplitedCooMatrix;
 
 /**
  * struct CscMatrix - 压缩稀疏列矩阵
@@ -30,7 +44,6 @@ typedef struct {
     int *rows;
     double *data;
 } CscMatrix;
-
 
 /**
  * struct CsrMatrix - 压缩稀疏行矩阵

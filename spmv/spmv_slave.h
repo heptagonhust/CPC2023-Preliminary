@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-  void slave_csc_spmv(SpmvPara *para_mp);
+  void slave_coo_spmv(SpmvPara *para_mp);
 
 #ifdef __cplusplus
 }

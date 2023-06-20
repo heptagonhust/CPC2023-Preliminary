@@ -1,6 +1,7 @@
 #include "spmv_slave.h"
 #include "crts.h"
 #include "slave_def.h"
+#include "swperf.h"
 #include "spmv/spmv_def.h"
 
 __thread_local crts_rply_t get_rply = 0;
@@ -9,137 +10,92 @@ __thread_local unsigned int get_cnt = 0;
 __thread_local crts_rply_t put_rply = 0;
 __thread_local unsigned int put_cnt = 0;
 
+
 // 双缓冲设计
-typedef struct {
-    void *buff[2];
-    int size;
-    int in_use;
-} DoubleBuffering;
+// typedef struct {
+//     void *buff[2];
+//     int size;
+//     int in_use;
+// } DoubleBuffering;
 
-inline static void slave_double_buffering_new(DoubleBuffering *buff, int size) {
-    buff->size = size;
-    void *tmp = CRTS_pldm_malloc(size * 2);
-    buff->buff[0] = tmp;
-    buff->buff[1] = buff->buff[0] + size;
-    buff->in_use = 1;
-}
+// inline static void slave_double_buffering_new(DoubleBuffering *buff, int size) {
+//     buff->size = size;
+//     void *tmp = CRTS_pldm_malloc(size * 2);
+//     buff->buff[0] = tmp;
+//     buff->buff[1] = buff->buff[0] + size;
+//     buff->in_use = 1;
+// }
 
-inline static void slave_double_buffering_free(DoubleBuffering *buff) {
-    CRTS_pldm_free(buff->buff, buff->size * 2);
-}
+// inline static void *slave_double_buffering_get(DoubleBuffering *buff) {
+//     int should_use = !buff->in_use;
+//     buff->in_use = should_use;
+//     return buff->buff[should_use];
+// }
 
-inline static void *slave_double_buffering_get(DoubleBuffering *buff, int size) {
-    int should_use = !buff->in_use;
-    buff->in_use = should_use;
-    return buff->buff[should_use];
-}
+// inline static void slave_double_buffering_free(DoubleBuffering *buff) {
+//     CRTS_pldm_free(buff->buff[0], buff->size * 2);
+// }
 
-static void slave_csc_chunk_unpack(CscChunk *chunk) {
-    int meta_seg_num = 2;
-    int *meta_seg = (int *)chunk->packed_data.mem;
-    int *rows_seg = (int *)chunk->packed_data.mem + meta_seg_num;
-    int *col_off_seg = (int *)chunk->packed_data.mem + meta_seg[0];
-    double *data_seg = (double *)chunk->packed_data.mem + meta_seg[1];
+#define MAX_CELL_NUM 88362
+// __thread_local_share double z[MAX_CELL_NUM] __attribute__((aligned(64)));
+// __thread_local_share double p[MAX_CELL_NUM] __attribute__((aligned(64)));
+__thread_local_share double vec[MAX_CELL_NUM] __attribute__((aligned(64)));
 
-    for (int i = 0; i < chunk->block_num; ++i) {
-        CscBlock *block = chunk->blocks + i;
 
-        block->rows = rows_seg;
-        rows_seg += block->data_size;
-
-        block->data = data_seg;
-        data_seg += block->data_size;
-
-        block->col_off = col_off_seg;
-        col_off_seg += block->col_num + 1;
-    }
-}
-
-void slave_csc_spmv(SpmvPara *para_mp) {
+void slave_coo_spmv(SpmvPara *para_mp) {
     // 这段代码中所有后缀为 _mp 的变量保存的是主存中的地址(master pointer)
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para_mp, sizeof(SpmvPara), &get_rply, get_cnt);
     int id = CRTS_tid;
     int chunk_num = spmv_para.chunk_num;
-    int *dma_over_mp = spmv_para.dma_over + id;
-    double *result_mp = spmv_para.result;
 
-    // 获取所需要的 chunk 在主存中的地址
-    CscChunk *chunk_mp;
-    DMA_GET(&chunk_mp, &(spmv_para.chunks[id]), sizeof(CscChunk *), &get_rply, get_cnt);
+    // 拉取chunk元数据
+    CooChunk *chunk = (CooChunk *)CRTS_pldm_malloc(spmv_para.chunks[id].mem_size);
+    DMA_GET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
 
-    // 将所需要的 chunk 读入
-    int size;
-    DMA_GET(&size, &(chunk_mp->size), sizeof(int), &get_rply, get_cnt);
-    CscChunk *chunk = (CscChunk *)CRTS_pldm_malloc(size);
-    DMA_GET(chunk, chunk_mp, size, &get_rply, get_cnt);
-    int block_num = chunk->block_num;
+    // Vector space
+    int rows = chunk->row_end - chunk->row_begin;
+    CRTS_memcpy_sldm(&vec, spmv_para.vec, spmv_para.sp_col * sizeof(double), MEM_TO_LDM);
 
-    printf("line 78\n");
-    void *mem = CRTS_pldm_malloc(chunk->packed_data.mem_size);
-    printf("line 80\n");
-    DMA_GET(mem, chunk->packed_data.mem, chunk->packed_data.mem_size, &get_rply, get_cnt);
-    printf("line 82\n");
-    chunk->packed_data.mem = mem;
-    printf("line 84\n");
-    slave_csc_chunk_unpack(chunk);
+    double *result_ldm = (double *)CRTS_pldm_malloc(rows * sizeof(double));
+    memset(result_ldm, 0, rows * sizeof(double));
+    int chunk_data_size = chunk->blocks[chunk->block_num].block_off;
+    if (chunk_data_size % 2) chunk_data_size++;
+    int ldm_left_size = CRTS_pldm_get_free_size();
 
-    CscBlock *blocks = chunk->blocks;
+    // ! just for debug
+    // 单次传入即可完成
+    if (ldm_left_size >= chunk_data_size * sizeof(double) * 1.5 + 64 * 3) {
+        double *data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
+        DMA_IGET(data, chunk->data, chunk_data_size * sizeof(double), &get_rply, get_cnt);
+        uint16_t *row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+        DMA_IGET(row_idx, chunk->row_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
+        uint16_t *col_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+        DMA_IGET(col_idx, chunk->col_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
+        DMA_WAIT(&get_rply, get_cnt);
 
-    printf("line 87\n");
-    // 获取该 chunk 对应 vec 的 slice
-    int col_begin = chunk->col_begin;
-    double *vec_mp = spmv_para.vec + col_begin;
-    int col_end = chunk->col_end;
-    int slice_size = col_end - col_begin;
-    double *slice = (double *)CRTS_pldm_malloc(slice_size);
-    DMA_GET(slice, vec_mp + col_begin, slice_size, &get_rply, get_cnt);
-
-    printf("line 96\n");
-    DoubleBuffering double_buff;
-    slave_double_buffering_new(&double_buff, sizeof(double) * spmv_para.max_block_row_num);
-    double *block_result_mp = result_mp + id;
-    for (int i = 0; i < block_num; ++i) {
-        CscBlock *block = blocks + i;
-        int col_num = block->col_num;
-        int row_num = block->row_end - block->row_begin;
-        int data_size = block->data_size;
-        int *rows = block->rows;
-        int *col_off = block->col_off;
-        double *data = block->data;
-
-        int result_size = sizeof(double) * row_num;
-
-        double *block_result = slave_double_buffering_get(&double_buff, result_size);
-
-        memset(block_result, 0, sizeof(double) * row_num);
-
-        // block 与 slice 的 spmv
-        for (int j = 0; j < col_num; ++j) {
-            int start = col_off[j];
-            int end = col_off[j + 1];
-            int num = end - start;
-            double tmp = 0.;
-            for (int k = 0; k < num; ++k) {
-                block_result[rows[start + k]] += slice[j] * data[start + k];
+        // block processing loop with double buffering
+        for (int i = 0; i < chunk->block_num; ++i) {
+            int block_data_size = chunk->blocks[i+1].block_off - chunk->blocks[i].block_off;
+            if (block_data_size != 0) {
+                int block_data_offset = chunk->blocks[i].block_off;
+                int block_col_begin = chunk->blocks[i].col_begin;
+                for (int j = 0; j < block_data_size; ++j) {
+                    result_ldm[row_idx[block_data_offset + j]] += data[block_data_offset + j] * vec[block_col_begin + col_idx[block_data_offset + j]];
+                }
             }
         }
-
-        int last = i - 1;
-        DMA_WAIT(&put_rply, put_cnt);
-        DMA_IPUT(dma_over_mp, &last, sizeof(int), &put_rply, put_cnt);
-        DMA_IPUT_STRIDE(block_result_mp, block_result, sizeof(double) * row_num, sizeof(double), sizeof(double) * chunk_num, &put_rply, put_cnt);
-
-        block_result_mp += row_num * chunk_num;
+        DMA_IPUT(spmv_para.result + chunk->row_begin, result_ldm, rows * sizeof(double), &put_rply, put_cnt);
+        CRTS_pldm_free(data, chunk_data_size * sizeof(double));
+        CRTS_pldm_free(row_idx, chunk_data_size * sizeof(uint16_t));
+        CRTS_pldm_free(col_idx, chunk_data_size * sizeof(uint16_t));
     }
 
-    int last = chunk_num - 1;
+    else {
+        printf("[ERROR] Coo matrix size is more than expected!\n");
+    }
+
+    CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     DMA_WAIT(&put_rply, put_cnt);
-    DMA_IPUT(dma_over_mp, &last, sizeof(int), &put_rply, put_cnt);
-
-    slave_double_buffering_free(&double_buff);
-
-    CRTS_pldm_free(slice, slice_size);
-    CRTS_pldm_free(chunk->packed_data.mem, chunk->packed_data.mem_size);
-    CRTS_pldm_free(chunk, size);
+    CRTS_pldm_free(result_ldm, rows * sizeof(double));
 }
