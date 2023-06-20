@@ -209,10 +209,11 @@ plain_matrix_from_splited_coo(const SplitedCooMatrix &splited_matrix) {
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
             auto data_size = chunk.blocks[j + 1].block_off - block.block_off;
-            auto row_begin = block.row_begin;
-            auto row_end = chunk.blocks[j + 1].row_begin;
-            auto col_begin = chunk.col_begin;
-            auto col_end = chunk.col_end;
+
+            auto col_begin = block.col_begin;
+            auto col_end = chunk.blocks[j + 1].col_begin;
+            auto row_begin = chunk.row_begin;
+            auto row_end = chunk.row_end;
 
             for (int u = row_begin; u < row_end; ++u) {
                 for (int v = col_begin; v < col_end; ++v) {

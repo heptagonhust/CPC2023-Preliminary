@@ -79,8 +79,8 @@ static void get_chunk_ranges(
          i < col_num;
          ++i) {
         if (current_chunk_size + col_size[i] > max_chunk_size) {
-            ranges[current_chunk_idx].col_begin = current_chunk_begin;
-            ranges[current_chunk_idx].col_num = i - current_chunk_begin;
+            ranges[current_chunk_idx].row_begin = current_chunk_begin;
+            ranges[current_chunk_idx].row_num = i - current_chunk_begin;
             ranges[current_chunk_idx].size = current_chunk_size;
 
             current_chunk_size = 0;
@@ -92,8 +92,8 @@ static void get_chunk_ranges(
     }
 
     if (current_chunk_idx < chunk_num) {
-        ranges[current_chunk_idx].col_begin = current_chunk_begin;
-        ranges[current_chunk_idx].col_num = i - current_chunk_begin;
+        ranges[current_chunk_idx].row_begin = current_chunk_begin;
+        ranges[current_chunk_idx].row_num = i - current_chunk_begin;
         ranges[current_chunk_idx].size = current_chunk_size;
 
         current_chunk_size = 0;
@@ -102,8 +102,8 @@ static void get_chunk_ranges(
     }
 
     while (current_chunk_idx < chunk_num) {
-        ranges[current_chunk_idx].col_begin = col_num;
-        ranges[current_chunk_idx].col_num = 0;
+        ranges[current_chunk_idx].row_begin = col_num;
+        ranges[current_chunk_idx].row_num = 0;
         ranges[current_chunk_idx].size = 0;
         current_chunk_idx += 1;
     }
@@ -120,6 +120,29 @@ struct Element {
 
         return column < another.column;
     }
+
+    Element(int row_, int column_, double value_) {
+        row = row_;
+        column = column_;
+        value = value_;
+    }
+
+#ifdef CHECK_ELEMENT_DISPATCHING
+    int chunk_idx, block_idx;
+
+    Element(
+        int row_,
+        int column_,
+        double value_,
+        int chunk_idx_,
+        int block_idx_) {
+        row = row_;
+        column = column_;
+        value = value_;
+        chunk_idx = chunk_idx_;
+        block_idx = block_idx_;
+    }
+#endif
 };
 
 #ifdef USE_SIMD
@@ -204,8 +227,8 @@ void give_away_elements(
     int *col_begin = (int *)malloc(sizeof(int) * result.chunk_num);
     int *col_end = (int *)malloc(sizeof(int) * result.chunk_num);
     for (int i = 0; i < result.chunk_num; ++i) {
-        col_begin[i] = result.chunk_ranges[i].col_begin;
-        col_end[i] = col_begin[i] + result.chunk_ranges[i].col_num;
+        col_begin[i] = result.chunk_ranges[i].row_begin;
+        col_end[i] = col_begin[i] + result.chunk_ranges[i].row_num;
     }
 
     int i;
@@ -214,26 +237,26 @@ void give_away_elements(
         int chunk_idx[8];
 #ifdef USE_SIMD
         simd_binary_search(
-            block_idx,
+            chunk_idx,
             col_begin,
             col_end,
             result.chunk_num,
             &elements_row[i]);
         simd_binary_search(
-            chunk_idx,
+            block_idx,
             col_begin,
             col_end,
             result.chunk_num,
             &elements_column[i]);
 #else
         naive_binary_search(
-            block_idx,
+            chunk_idx,
             col_begin,
             col_end,
             result.chunk_num,
             &elements_row[i]);
         naive_binary_search(
-            chunk_idx,
+            block_idx,
             col_begin,
             col_end,
             result.chunk_num,
@@ -241,11 +264,22 @@ void give_away_elements(
 #endif
 
         for (int j = 0; j < 8; ++j) {
+            int block_col_begin = result.chunks[chunk_idx[j]]
+                                      .chunk->blocks[block_idx[j]]
+                                      .col_begin;
+            int block_row_begin = result.chunk_ranges[chunk_idx[j]].row_begin;
+            assert(block_col_begin <= elements_column[i + j]);
+            assert(block_row_begin <= elements_row[i + j]);
             block_elements[chunk_idx[j] * result.chunk_num + block_idx[j]]
                 .push_back((Element) {
                     elements_row[i + j],
                     elements_column[i + j],
-                    elements_value[i + j]});
+                    elements_value[i + j],
+#ifdef CHECK_ELEMENT_DISPATCHING
+                    chunk_idx[j],
+                    block_idx[j]
+#endif
+                });
         }
     }
 
@@ -262,7 +296,7 @@ void give_away_elements(
             } else if (elements_row[i] < begin) {
                 r = m;
             } else {
-                block_idx = m;
+                chunk_idx = m;
                 break;
             }
         }
@@ -277,13 +311,21 @@ void give_away_elements(
             } else if (elements_column[i] < begin) {
                 r = m;
             } else {
-                chunk_idx = m;
+                block_idx = m;
                 break;
             }
         }
 
         block_elements[chunk_idx * result.chunk_num + block_idx].push_back(
-            (Element) {elements_row[i], elements_column[i], elements_value[i]});
+            (Element) {
+                elements_row[i],
+                elements_column[i],
+                elements_value[i],
+#ifdef CHECK_ELEMENT_DISPATCHING
+                chunk_idx,
+                block_idx
+#endif
+            });
     }
 
     free(col_begin);
@@ -300,7 +342,7 @@ extern SplitedCooMatrix
 ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     SplitedCooMatrix result;
 
-    int col_num = ldu_matrix.cells;
+    int row_num = ldu_matrix.cells;
 
     int *elements_row =
         (int *)malloc(sizeof(int) * (ldu_matrix.cells + ldu_matrix.faces * 2));
@@ -310,12 +352,12 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         sizeof(double) * (ldu_matrix.cells + ldu_matrix.faces * 2));
     int data_size = 0;
 
-    int *col_size = (int *)malloc(sizeof(int) * col_num);
-    memset(col_size, 0, sizeof(int) * col_num);
+    int *row_size = (int *)malloc(sizeof(int) * row_num);
+    memset(row_size, 0, sizeof(int) * row_num);
 
     for (int i = 0; i < ldu_matrix.faces; i++) {
-        col_size[ldu_matrix.lPtr[i]] += 1;
-        col_size[ldu_matrix.uPtr[i]] += 1;
+        row_size[ldu_matrix.lPtr[i]] += 1;
+        row_size[ldu_matrix.uPtr[i]] += 1;
     }
 
     for (int i = 0; i < ldu_matrix.faces; i++) {
@@ -347,14 +389,14 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         elements_column[data_size] = column;
         elements_value[data_size] = value;
         data_size += 1;
-        col_size[column] += 1;
+        row_size[row] += 1;
     }
 
     result.chunk_num = chunk_num;
 
     result.chunk_ranges =
         (CooChunkRange *)malloc(sizeof(CooChunkRange) * chunk_num);
-    get_chunk_ranges(result.chunk_ranges, col_size, col_num, chunk_num);
+    get_chunk_ranges(result.chunk_ranges, row_size, row_num, chunk_num);
 
     result.chunks = (SizedCooChunk *)malloc(sizeof(SizedCooChunk) * chunk_num);
     for (int i = 0; i < chunk_num; ++i) {
@@ -365,12 +407,12 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         auto &chunk = *result.chunks[i].chunk;
 
         int chunk_data_size = 0;
-        for (int j = 0; j < result.chunk_ranges[i].col_num; ++j) {
-            chunk_data_size += col_size[j + result.chunk_ranges[i].col_begin];
+        for (int j = 0; j < result.chunk_ranges[i].row_num; ++j) {
+            chunk_data_size += row_size[j + result.chunk_ranges[i].row_begin];
         }
 
-        chunk.col_begin = result.chunk_ranges[i].col_begin;
-        chunk.col_end = chunk.col_begin + result.chunk_ranges[i].col_num;
+        chunk.row_begin = result.chunk_ranges[i].row_begin;
+        chunk.row_end = chunk.row_begin + result.chunk_ranges[i].row_num;
         chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
         chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
         chunk.data = (double *)malloc(sizeof(double) * chunk_data_size);
@@ -378,12 +420,12 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
-            block.col_num = chunk.col_end - chunk.col_begin;
-            block.row_begin = result.chunk_ranges[j].col_begin;
+            block.row_num = chunk.row_end - chunk.row_begin;
+            block.col_begin = result.chunk_ranges[j].row_begin;
             block.block_off = 0;
         }
-        chunk.blocks[chunk.block_num].col_num = 0;
-        chunk.blocks[chunk.block_num].row_begin = col_num;
+        chunk.blocks[chunk.block_num].row_num = 0;
+        chunk.blocks[chunk.block_num].col_begin = row_num;
         chunk.blocks[chunk.block_num].block_off = chunk_data_size;
     }
 
@@ -414,15 +456,20 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
             chunk_block_off += items.size();
             for (auto element = items.begin(); element != items.end();
                  ++element) {
+#ifdef CHECK_ELEMENT_DISPATCHING
+                assert(element->chunk_idx == chunk_idx);
+                assert(element->block_idx == block_idx);
+#endif
+
                 // is uint16_t enough for indexes?
-                assert(element->row - block.row_begin >= 0);
-                assert(element->row - block.row_begin < 65536);
-                assert(element->column - chunk.col_begin >= 0);
-                assert(element->column - chunk.col_begin < 65536);
+                assert(element->column - block.col_begin >= 0);
+                assert(element->column - block.col_begin < 65536);
+                assert(element->row - chunk.row_begin >= 0);
+                assert(element->row - chunk.row_begin < 65536);
                 chunk.row_idx[chunk_data_size] =
-                    (uint16_t)(element->row - block.row_begin);
+                    (uint16_t)(element->row - chunk.row_begin);
                 chunk.col_idx[chunk_data_size] =
-                    (uint16_t)(element->column - chunk.col_begin);
+                    (uint16_t)(element->column - block.col_begin);
                 chunk.data[chunk_data_size] = element->value;
                 chunk_data_size += 1;
             }
