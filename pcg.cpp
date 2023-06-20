@@ -140,10 +140,6 @@ PCGReturn pcg_solve(
     free(preD);
     free_pcg(pcg);
 
-    spmv_para_free(&para_Ax);
-    spmv_para_free(&para_Ap);
-    spmv_para_free(&para_Az);
-
     PCGReturn pcg_return;
     pcg_return.residual = pcg.residual;
     pcg_return.iter = iter;

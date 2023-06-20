@@ -120,13 +120,9 @@ typedef struct {
     int chunk_num;  // 64
     int sp_row;  // 稀疏矩阵的行数
     int sp_col;  // 稀疏矩阵的列数，也是右乘向量的行数
-    int max_block_row_num;  // 所有 block 的最大行数
-    double *
-        result;  // 每个 chunk 计算得到的结果，共有 chunk_num 个，每个行数为 sp_row
-    int *dma_over;  // 指示从核是否已经将结果写到主存，共有 chunk_num 个
+    double *result;
     double *vec;  // 右乘的向量
     SizedCooChunk chunks[SLAVE_CORE_NUM];
-    int *reduce_status;
 } SpmvPara;
 
 #endif
