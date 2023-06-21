@@ -20,7 +20,7 @@ __thread_local double reduce_buf[REDUCE_BUF_SIZE] __attribute__((aligned(64)));
 __thread_local int cells;
 
 //TODO can be optimized
-void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin) {
+inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin) {
     slave_Mul(z + vec_begin, M_1, r, vec_num);
     for (int deg = 1; deg < 2; deg++) {
         CRTS_ssync_sldm();
@@ -102,7 +102,7 @@ void slave_MainLoop(MainLoopPara *para_mem) {
                 slave_precondition_coo(chunk, M, M_1, r, z, g, vec_num, vec_begin);
                 sumprod = slave_MulReduceZR(r, z + vec_begin, vec_num, &reduce_buf[0]);
                 beta = sumprod / sumprod_old;
-                slave_MulAdd(p + vec_begin, z + vec_begin, beta, vec_num);
+                slave_MulAdd(p + vec_begin, z + vec_begin, beta, vec_num, vec_begin);
             }
             CRTS_ssync_array();
             slave_coo_spmv(chunk, p, Ax);

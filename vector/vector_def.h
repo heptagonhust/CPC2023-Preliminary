@@ -78,7 +78,7 @@ typedef struct {
 extern "C" {
 #endif
     //! vec1 = vec0 + scalar * vec1
-    void slave_MulAdd(double *p, double *z, double beta, int vec_num);
+    void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start);
 
     //! result[i] = vec0[i] * vec1[i]
     void slave_Mul(double *z, double *M_1, double *r, int vec_num);

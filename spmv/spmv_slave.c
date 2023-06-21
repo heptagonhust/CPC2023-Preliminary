@@ -4,7 +4,7 @@
 #include "spmv_def.h"
 
 
-void slave_coo_spmv(CooChunk *chunk, double *vec, double *result) {
+inline void slave_coo_spmv(CooChunk *chunk, double *vec, double *result) {
     int rows = chunk->row_end - chunk->row_begin;
     memset(result, 0, rows * sizeof(double));
 
