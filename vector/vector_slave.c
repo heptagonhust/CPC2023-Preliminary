@@ -7,9 +7,6 @@
 #include "pcg_def.h"
 #include "vector_def.h"
 
-#define SIMD_WIDTH 8
-__thread_local double simd_arr[SIMD_WIDTH] __attribute__((aligned(64)));
-
 // --------------------------------------------------------------------------------
 
 inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start) {
@@ -18,8 +15,7 @@ inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec
     int end = (vec_num - front) % 8;
     int off = 0;
     doublev8 p8, z8, beta8;
-    for (int i = 0; i < 8; ++i) simd_arr[i] = beta;
-    simd_load(beta8, simd_arr);
+    beta8 = simd_vcpyfd(beta);
     for (; off < front; ++off) {
         p[off] = z[off] + beta * p[off];
     }
@@ -162,9 +158,7 @@ inline void slave_Updatexr(double *x, double *r, double *p, double *Ax, double a
         *r -= alpha * *Ax;
     }
     doublev8 x8, r8, p8, Ax8, tmp8, alpha8;
-    for (int i = 0; i < 8; ++i)
-        simd_arr[i] = alpha;
-    simd_load(alpha8, simd_arr);
+    alpha8 = simd_vcpyfd(alpha);
     for (; p < round_p; x += 8, r += 8, p += 8, Ax += 8) {
         simd_loadu(x8, x);
         simd_loadu(r8, r);
