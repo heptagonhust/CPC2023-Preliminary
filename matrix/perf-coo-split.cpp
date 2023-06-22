@@ -15,7 +15,10 @@ int main(void) {
     LduMatrix ldu_matrix;
     int matrix_size = 25 * 64;
     generate_ldu_matrix(ldu_matrix, matrix_size);
-    auto splited = ldu_to_splited_coo(ldu_matrix, 64);
+    for (int i = 0; i < 50; ++i) {
+        auto splited = ldu_to_splited_coo(ldu_matrix, 64);
+        free_splited_coo(splited);
+    }
     free_ldu_matrix(ldu_matrix);
     return 0;
 }

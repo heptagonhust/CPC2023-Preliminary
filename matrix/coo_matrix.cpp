@@ -113,35 +113,15 @@ struct Element {
     int row, column;
     double value;
 
-    bool operator<(const Element &another) {
+    bool operator<(const Element &another) const {
         if (row != another.row) {
             return row < another.row;
         }
 
         return column < another.column;
     }
-
-    Element(int row_, int column_, double value_) {
-        row = row_;
-        column = column_;
-        value = value_;
-    }
-
 #ifdef CHECK_ELEMENT_DISPATCHING
     int chunk_idx, block_idx;
-
-    Element(
-        int row_,
-        int column_,
-        double value_,
-        int chunk_idx_,
-        int block_idx_) {
-        row = row_;
-        column = column_;
-        value = value_;
-        chunk_idx = chunk_idx_;
-        block_idx = block_idx_;
-    }
 #endif
 };
 
@@ -217,13 +197,85 @@ void naive_binary_search(
 }
 #endif
 
+struct {
+    int num;
+    int col_begin[64];
+    int col_end[64];
+
+    int data[99999];
+} BSCache;
+
+void init_bs_cache(void) {
+    memset(BSCache.data, -1, sizeof(BSCache.data));
+}
+
+void cached_binary_search(
+    int *res,
+    int *col_begin,
+    int *col_end,
+    int size,
+    int *keys) {
+    for (int i = 0; i < 8; ++i) {
+        if (BSCache.data[keys[i]] >= 0) {
+            res[i] = BSCache.data[keys[i]];
+        } else {
+            int l = 0, r = size;
+            for (;;) {
+                int m = l + (r - l) / 2;
+                auto begin = col_begin[m];
+                auto end = col_end[m];
+                if (end <= keys[i]) {
+                    l = m + 1;
+                } else if (keys[i] < begin) {
+                    r = m;
+                } else {
+                    res[i] = m;
+                    break;
+                }
+            }
+            BSCache.data[keys[i]] = res[i];
+        }
+    }
+}
+
+int cached_binary_search_single(
+    int *col_begin,
+    int *col_end,
+    int size,
+    int key) {
+    if (BSCache.data[key] >= 0) {
+        return BSCache.data[key];
+    } else {
+        int l = 0, r = size;
+        for (;;) {
+            int m = l + (r - l) / 2;
+            auto begin = col_begin[m];
+            auto end = col_end[m];
+            if (end <= key) {
+                l = m + 1;
+            } else if (key < begin) {
+                r = m;
+            } else {
+                BSCache.data[key] = m;
+                return m;
+                break;
+            }
+        }
+    }
+}
+
 void give_away_elements(
     const SplitedCooMatrix &result,
-    std::vector<Element> *block_elements,
     int data_size,
     int *elements_row,
     int *elements_column,
     double *elements_value) {
+    init_bs_cache();
+
+    int *block_size =
+        (int *)malloc(sizeof(int) * result.chunk_num * result.chunk_num);
+    memset(block_size, 0, sizeof(int) * result.chunk_num * result.chunk_num);
+
     int *col_begin = (int *)malloc(sizeof(int) * result.chunk_num);
     int *col_end = (int *)malloc(sizeof(int) * result.chunk_num);
     for (int i = 0; i < result.chunk_num; ++i) {
@@ -249,13 +301,13 @@ void give_away_elements(
             result.chunk_num,
             &elements_column[i]);
 #else
-        naive_binary_search(
+        cached_binary_search(
             chunk_idx,
             col_begin,
             col_end,
             result.chunk_num,
             &elements_row[i]);
-        naive_binary_search(
+        cached_binary_search(
             block_idx,
             col_begin,
             col_end,
@@ -264,78 +316,72 @@ void give_away_elements(
 #endif
 
         for (int j = 0; j < 8; ++j) {
-            int block_col_begin = result.chunks[chunk_idx[j]]
-                                      .chunk->blocks[block_idx[j]]
-                                      .col_begin;
-            int block_row_begin = result.chunk_ranges[chunk_idx[j]].row_begin;
-            assert(block_col_begin <= elements_column[i + j]);
-            assert(block_row_begin <= elements_row[i + j]);
-            block_elements[chunk_idx[j] * result.chunk_num + block_idx[j]]
-                .push_back((Element) {
-                    elements_row[i + j],
-                    elements_column[i + j],
-                    elements_value[i + j],
-#ifdef CHECK_ELEMENT_DISPATCHING
-                    chunk_idx[j],
-                    block_idx[j]
-#endif
-                });
+            block_size[chunk_idx[j] * result.chunk_num + block_idx[j]] += 1;
         }
     }
 
     for (; i < data_size; ++i) {
-        int l, r;
-        int block_idx = -1, chunk_idx = -1;
-        l = 0, r = result.chunk_num;
-        for (;;) {
-            int m = l + (r - l) / 2;
-            auto begin = col_begin[m];
-            auto end = col_end[m];
-            if (end <= elements_row[i]) {
-                l = m + 1;
-            } else if (elements_row[i] < begin) {
-                r = m;
-            } else {
-                chunk_idx = m;
-                break;
-            }
-        }
+        int chunk_idx = cached_binary_search_single(
+            col_begin,
+            col_end,
+            result.chunk_num,
+            elements_row[i]);
+        int block_idx = cached_binary_search_single(
+            col_begin,
+            col_end,
+            result.chunk_num,
+            elements_column[i]);
 
-        l = 0, r = result.chunk_num;
-        for (;;) {
-            int m = l + (r - l) / 2;
-            auto begin = col_begin[m];
-            auto end = col_end[m];
-            if (end <= elements_column[i]) {
-                l = m + 1;
-            } else if (elements_column[i] < begin) {
-                r = m;
-            } else {
-                block_idx = m;
-                break;
-            }
-        }
-
-        block_elements[chunk_idx * result.chunk_num + block_idx].push_back(
-            (Element) {
-                elements_row[i],
-                elements_column[i],
-                elements_value[i],
-#ifdef CHECK_ELEMENT_DISPATCHING
-                chunk_idx,
-                block_idx
-#endif
-            });
+        block_size[chunk_idx * result.chunk_num + block_idx] += 1;
     }
 
+    int *chunk_block_off =
+        (int *)malloc(sizeof(int) * result.chunk_num * result.chunk_num);
+    memset(
+        chunk_block_off,
+        0,
+        sizeof(int) * result.chunk_num * result.chunk_num);
+
+    for (int chunk_idx = 0; chunk_idx < result.chunk_num; ++chunk_idx) {
+        auto &chunk = *result.chunks[chunk_idx].chunk;
+        int chunk_data_size = 0;
+        for (int block_idx = 0; block_idx < result.chunk_num; ++block_idx) {
+            auto &block = chunk.blocks[block_idx];
+            int idx = chunk_idx * result.chunk_num + block_idx;
+            block.block_off = chunk_data_size;
+            chunk_block_off[idx] = chunk_data_size;
+            chunk_data_size += block_size[idx];
+        }
+    }
+
+    for (i = 0; i < data_size; ++i) {
+        int block_idx = BSCache.data[elements_column[i]];
+        int chunk_idx = BSCache.data[elements_row[i]];
+        auto &chunk = *result.chunks[chunk_idx].chunk;
+        auto &idx = chunk_block_off[chunk_idx * result.chunk_num + block_idx];
+
+        chunk.row_idx[idx] = elements_row[i] - col_begin[chunk_idx];
+        chunk.col_idx[idx] = elements_column[i] - col_begin[block_idx];
+        chunk.data[idx] = elements_value[i];
+        idx += 1;
+    }
+
+    free(chunk_block_off);
+    free(block_size);
     free(col_begin);
     free(col_end);
 }
 
-void sort_block_elements(std::vector<Element> *block_elements, int chunk_num) {
-    for (int i = 0; i < chunk_num; ++i) {
-        std::sort(block_elements[i].begin(), block_elements[i].end());
+extern void free_splited_coo(SplitedCooMatrix &mtx) {
+    free(mtx.chunk_ranges);
+    for (int i = 0; i < mtx.chunk_num; ++i) {
+        auto &chunk = *mtx.chunks[i].chunk;
+        free(chunk.col_idx);
+        free(chunk.row_idx);
+        free(chunk.data);
+        free(mtx.chunks[i].chunk);
     }
+    free(mtx.chunks);
 }
 
 extern SplitedCooMatrix
@@ -353,44 +399,46 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     int data_size = 0;
 
     int *row_size = (int *)malloc(sizeof(int) * row_num);
-    memset(row_size, 0, sizeof(int) * row_num);
 
+    for (int i = 0; i < ldu_matrix.cells; i++) {
+        row_size[i] = 1;
+    }
     for (int i = 0; i < ldu_matrix.faces; i++) {
         row_size[ldu_matrix.lPtr[i]] += 1;
         row_size[ldu_matrix.uPtr[i]] += 1;
     }
 
-    for (int i = 0; i < ldu_matrix.faces; i++) {
-        int row, column;
-        double value;
+    memcpy(elements_row, ldu_matrix.uPtr, sizeof(int) * ldu_matrix.faces);
+    memcpy(
+        elements_row + ldu_matrix.faces,
+        ldu_matrix.lPtr,
+        sizeof(int) * ldu_matrix.faces);
 
-        value = ldu_matrix.lower[i];
-        row = ldu_matrix.uPtr[i];
-        column = ldu_matrix.lPtr[i];
-        elements_row[data_size] = row;
-        elements_column[data_size] = column;
-        elements_value[data_size] = value;
-        data_size += 1;
+    memcpy(elements_column, ldu_matrix.lPtr, sizeof(int) * ldu_matrix.faces);
+    memcpy(
+        elements_column + ldu_matrix.faces,
+        ldu_matrix.uPtr,
+        sizeof(int) * ldu_matrix.faces);
 
-        value = ldu_matrix.upper[i];
-        row = ldu_matrix.lPtr[i];
-        column = ldu_matrix.uPtr[i];
-        elements_row[data_size] = row;
-        elements_column[data_size] = column;
-        elements_value[data_size] = value;
-        data_size += 1;
-    }
+    memcpy(elements_value, ldu_matrix.lower, sizeof(double) * ldu_matrix.faces);
+    memcpy(
+        elements_value + ldu_matrix.faces,
+        ldu_matrix.upper,
+        sizeof(double) * ldu_matrix.faces);
+
+    data_size = 2 * ldu_matrix.faces;
+
+    memcpy(
+        elements_value + data_size,
+        ldu_matrix.diag,
+        sizeof(double) * ldu_matrix.cells);
 
     for (int i = 0; i < ldu_matrix.cells; i++) {
-        auto value = ldu_matrix.diag[i];
-        auto row = i;
-        auto column = i;
-        elements_row[data_size] = row;
-        elements_column[data_size] = column;
-        elements_value[data_size] = value;
-        data_size += 1;
-        row_size[row] += 1;
+        elements_row[data_size + i] = i;
+        elements_column[data_size + i] = i;
     }
+
+    data_size += ldu_matrix.cells;
 
     result.chunk_num = chunk_num;
 
@@ -429,53 +477,16 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         chunk.blocks[chunk.block_num].block_off = chunk_data_size;
     }
 
-    std::vector<Element> *block_elements =
-        new std::vector<Element>[chunk_num * chunk_num];
-
     give_away_elements(
         result,
-        block_elements,
         data_size,
         elements_row,
         elements_column,
         elements_value);
+
+    free(row_size);
     free(elements_row);
     free(elements_column);
     free(elements_value);
-
-    sort_block_elements(block_elements, chunk_num);
-
-    for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
-        auto &chunk = *result.chunks[chunk_idx].chunk;
-        int chunk_data_size = 0;
-        int chunk_block_off = 0;
-        for (int block_idx = 0; block_idx < chunk_num; ++block_idx) {
-            auto &block = chunk.blocks[block_idx];
-            auto &items = block_elements[chunk_idx * chunk_num + block_idx];
-            block.block_off = chunk_block_off;
-            chunk_block_off += items.size();
-            for (auto element = items.begin(); element != items.end();
-                 ++element) {
-#ifdef CHECK_ELEMENT_DISPATCHING
-                assert(element->chunk_idx == chunk_idx);
-                assert(element->block_idx == block_idx);
-#endif
-
-                // is uint16_t enough for indexes?
-                assert(element->column - block.col_begin >= 0);
-                assert(element->column - block.col_begin < 65536);
-                assert(element->row - chunk.row_begin >= 0);
-                assert(element->row - chunk.row_begin < 65536);
-                chunk.row_idx[chunk_data_size] =
-                    (uint16_t)(element->row - chunk.row_begin);
-                chunk.col_idx[chunk_data_size] =
-                    (uint16_t)(element->column - block.col_begin);
-                chunk.data[chunk_data_size] = element->value;
-                chunk_data_size += 1;
-            }
-        }
-    }
-
-    delete[] block_elements;
     return result;
 }
