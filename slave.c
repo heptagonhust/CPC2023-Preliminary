@@ -44,7 +44,9 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     cells = spmv_para.sp_col;
 
     CooChunk *chunk = (CooChunk *)CRTS_pldm_malloc(spmv_para.chunks[id].mem_size);
-    DMA_IGET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
+    DMA_GET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
+    int *tmp = (int *)CRTS_pldm_malloc((chunk->block_num + 1) * sizeof(int));
+    DMA_IGET(tmp, chunk->block_off, (chunk->block_num + 1) * sizeof(int), &get_rply, get_cnt);
     //* get vector data
     double *r = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *g = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
@@ -59,7 +61,8 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     CRTS_memcpy_sldm(&p, para.p, spmv_para.sp_col * sizeof(double), MEM_TO_LDM);
     DMA_WAIT(&get_rply, get_cnt);
     //* get spmv chunk data
-    int chunk_data_size = chunk->blocks[chunk->block_num].block_off;
+    chunk->block_off = tmp;
+    int chunk_data_size = chunk->block_off[chunk->block_num];
     if (chunk_data_size % 2) chunk_data_size++;
     //! only for debug
     int ldm_left_size = CRTS_pldm_get_free_size();
@@ -124,6 +127,7 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     CRTS_pldm_free(Ax, vec_num * sizeof(double));
     CRTS_pldm_free(M, vec_num * sizeof(double));
     CRTS_pldm_free(M_1, vec_num * sizeof(double));
+    CRTS_pldm_free(chunk->block_off, (chunk->block_num + 1) * sizeof(int));
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     DMA_WAIT(&put_rply, put_cnt);
 }

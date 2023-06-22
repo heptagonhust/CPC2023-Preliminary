@@ -6,6 +6,7 @@
 #include <crts.h>
 #include <slave.h>
 #include <string.h>
+#include <simd.h>
 
 /// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
 ///

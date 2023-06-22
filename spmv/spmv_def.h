@@ -1,8 +1,8 @@
 #ifndef _SPMV_DEF_H_
 #define _SPMV_DEF_H_
 
-#include <stdbool.h>
 #include <stdint.h>
+#include <stdbool.h>
 // 圣遗物
 #if 0
 /// 在矩阵分块计算中，每个 block 和 vec 的一个 slice 相乘， block 的列数等于 slice 的行数
@@ -85,13 +85,14 @@ typedef struct {
 
 #endif
 
+
+
 #define SLAVE_CORE_NUM 64
 
 typedef struct {
     int row_num;  // **这个** block 的列数
     // block 开始和结束的行序号（左闭右开）（暂时没有用到）
     int col_begin;
-    int block_off;
 } CooBlock;
 
 // 将一个 chunk 分成 block_num 个 block
