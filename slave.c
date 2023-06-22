@@ -5,6 +5,7 @@
 #include "spmv_def.h"
 #include "spmv_slave.h"
 #include "slave_def.h"
+#include "swperf.h"
 
 __thread_local crts_rply_t get_rply = 0;
 __thread_local unsigned int get_cnt = 0;
@@ -18,20 +19,44 @@ __thread_local_share double p[MAX_CELL_NUM] __attribute__((aligned(64)));
 __thread_local_share double z[MAX_CELL_NUM] __attribute__((aligned(64)));
 __thread_local double reduce_buf[REDUCE_BUF_SIZE] __attribute__((aligned(64)));
 __thread_local int cells;
+__thread_local unsigned long sync_cycles = 0;
+__thread_local unsigned long share_access_cycles = 0;
+__thread_local unsigned long spmv_cycles = 0;
+__thread_local unsigned long icc = 0;
+__thread_local unsigned long pldm_access_cycles = 0;
+
 
 //TODO can be optimized
 inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin) {
     slave_Mul(z + vec_begin, M_1, r, vec_num);
     for (int deg = 1; deg < 2; deg++) {
-        CRTS_ssync_sldm();
+                penv_slave0_cycle_count(&icc);
+                int start = icc;
+            CRTS_ssync_sldm();
+                penv_slave0_cycle_count(&icc);
+                sync_cycles += icc - start;
+                penv_slave0_cycle_count(&icc);
+                start = icc;
         slave_coo_spmv(chunk, z, g);
+                penv_slave0_cycle_count(&icc);
+                spmv_cycles += icc - start;
         slave_MulSub(g, z + vec_begin, M, vec_num);
-        CRTS_ssync_sldm();
+                penv_slave0_cycle_count(&icc);
+                start = icc;
+            CRTS_ssync_sldm();
+                penv_slave0_cycle_count(&icc);
+                sync_cycles += icc - start;
         slave_SubMul(z + vec_begin, r, g, M_1, vec_num);
     }
 }
 
 void slave_MainLoop(MainLoopPara *para_mem) {
+    icc = 0;
+    sync_cycles = 0;
+    spmv_cycles = 0;
+    share_access_cycles = 0;
+    pldm_access_cycles = 0;
+    penv_slave0_cycle_init();
     int id = CRTS_tid;
     //* get meta data
     MainLoopPara para;
@@ -64,6 +89,7 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     //! only for debug
     int ldm_left_size = CRTS_pldm_get_free_size();
     if (ldm_left_size >= chunk_data_size * sizeof(double) * 1.5 + 64 * 3) {
+
         double *data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
         DMA_IGET(data, chunk->data, chunk_data_size * sizeof(double), &get_rply, get_cnt);
         uint16_t *row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
@@ -87,7 +113,6 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     double residual = slave_Reduce(r, vec_num, &reduce_buf[0]);
     double init_residual = residual;
     double sumprod, sumprod_old;
-    
 
     int iter = 0;
     if (fabs(residual / para.normfactor) > para.tolerance) {
@@ -104,8 +129,16 @@ void slave_MainLoop(MainLoopPara *para_mem) {
                 beta = sumprod / sumprod_old;
                 slave_MulAdd(p + vec_begin, z + vec_begin, beta, vec_num, vec_begin);
             }
-            CRTS_ssync_array();
+                penv_slave0_cycle_count(&icc);
+                int start = icc;
+            CRTS_ssync_sldm();
+                penv_slave0_cycle_count(&icc);
+                sync_cycles += icc - start;
+                penv_slave0_cycle_count(&icc);
+                start = icc;
             slave_coo_spmv(chunk, p, Ax);
+                penv_slave0_cycle_count(&icc);
+                spmv_cycles += icc - start;
             alpha = sumprod / slave_MulReducepAx(p + vec_begin, Ax, vec_num, &reduce_buf[0]);
             slave_Updatexr(x, r, p + vec_begin, Ax, alpha, vec_num);
             residual = slave_Reduce(r, vec_num, &reduce_buf[0]);
@@ -126,4 +159,6 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     CRTS_pldm_free(M_1, vec_num * sizeof(double));
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     DMA_WAIT(&put_rply, put_cnt);
+    penv_slave0_cycle_count(&icc);
+    printf("Slave: %d, Total cycles: %lu, Sync cycles: %lu, spmv cycles: %lu, pldm access cycles: %lu, sldm access cycles: %lu\n", CRTS_tid, icc, sync_cycles, spmv_cycles, pldm_access_cycles, share_access_cycles);
 }
