@@ -48,11 +48,12 @@ static int splited_chunk_num(int *col_size, int col_num, int max_chunk_size) {
  *
  * Return: 切分后最大的 chunk 的大小
  */
-static int splited_max_chunk_size(int *col_size, int col_num, int chunk_num) {
-    int l = 0, r = 0;
-    for (int i = 0; i < col_num; ++i) {
-        r += col_size[i];
-    }
+static int splited_max_chunk_size(
+    int *col_size,
+    int total_size,
+    int col_num,
+    int chunk_num) {
+    int l = 0, r = total_size;
     while (l < r) {
         int chunk_size = l + (r - l) / 2;
         if (splited_chunk_num(col_size, col_num, chunk_size) <= chunk_num) {
@@ -65,12 +66,12 @@ static int splited_max_chunk_size(int *col_size, int col_num, int chunk_num) {
     return l;
 }
 
-static void get_chunk_ranges(
+static bool real_get_chunk_ranges(
     CooChunkRange *ranges,
     int *col_size,
     int col_num,
-    int chunk_num) {
-    int max_chunk_size = splited_max_chunk_size(col_size, col_num, chunk_num);
+    int chunk_num,
+    int max_chunk_size) {
     int i, current_chunk_size, current_chunk_begin, current_chunk_idx;
     for (i = 0,
         current_chunk_size = 0,
@@ -78,6 +79,9 @@ static void get_chunk_ranges(
         current_chunk_idx = 0;
          i < col_num;
          ++i) {
+        if (current_chunk_idx >= chunk_num) {
+            return false;
+        }
         if (current_chunk_size + col_size[i] > max_chunk_size) {
             ranges[current_chunk_idx].row_begin = current_chunk_begin;
             ranges[current_chunk_idx].row_num = i - current_chunk_begin;
@@ -107,6 +111,58 @@ static void get_chunk_ranges(
         ranges[current_chunk_idx].size = 0;
         current_chunk_idx += 1;
     }
+
+    return true;
+}
+
+struct {
+    int num;
+    int col_begin[64];
+    int col_end[64];
+
+    int data[99999];
+} BSCache;
+
+void init_bs_cache(void) {
+    memset(BSCache.data, -1, sizeof(BSCache.data));
+}
+
+static void get_chunk_ranges_and_init_bs_cache(
+    CooChunkRange *ranges,
+    int *col_size,
+    int total_size,
+    int col_num,
+    int chunk_num) {
+    static int last_max_chunk_size;
+
+    if (last_max_chunk_size != 0) {
+        if (real_get_chunk_ranges(
+                ranges,
+                col_size,
+                col_num,
+                chunk_num,
+                last_max_chunk_size)) {
+            int max_chunk = 0;
+            int min_chunk = 999999999;
+            for (int i = 0; i < chunk_num; ++i) {
+                min_chunk = std::min(min_chunk, ranges[i].size);
+                max_chunk = std::max(max_chunk, ranges[i].size);
+            }
+            if (8 * (max_chunk - min_chunk) < max_chunk) {
+                return;
+            }
+        }
+    }
+
+    last_max_chunk_size =
+        splited_max_chunk_size(col_size, total_size, col_num, chunk_num);
+    real_get_chunk_ranges(
+        ranges,
+        col_size,
+        col_num,
+        chunk_num,
+        last_max_chunk_size);
+    init_bs_cache();
 }
 
 struct Element {
@@ -197,18 +253,6 @@ void naive_binary_search(
 }
 #endif
 
-struct {
-    int num;
-    int col_begin[64];
-    int col_end[64];
-
-    int data[99999];
-} BSCache;
-
-void init_bs_cache(void) {
-    memset(BSCache.data, -1, sizeof(BSCache.data));
-}
-
 void cached_binary_search(
     int *res,
     int *col_begin,
@@ -264,114 +308,6 @@ int cached_binary_search_single(
     }
 }
 
-void give_away_elements(
-    const SplitedCooMatrix &result,
-    int data_size,
-    int *elements_row,
-    int *elements_column,
-    double *elements_value) {
-    init_bs_cache();
-
-    int *block_size =
-        (int *)malloc(sizeof(int) * result.chunk_num * result.chunk_num);
-    memset(block_size, 0, sizeof(int) * result.chunk_num * result.chunk_num);
-
-    int *col_begin = (int *)malloc(sizeof(int) * result.chunk_num);
-    int *col_end = (int *)malloc(sizeof(int) * result.chunk_num);
-    for (int i = 0; i < result.chunk_num; ++i) {
-        col_begin[i] = result.chunk_ranges[i].row_begin;
-        col_end[i] = col_begin[i] + result.chunk_ranges[i].row_num;
-    }
-
-    int i;
-    for (i = 0; i < data_size / 8 * 8; i += 8) {
-        int block_idx[8];
-        int chunk_idx[8];
-#ifdef USE_SIMD
-        simd_binary_search(
-            chunk_idx,
-            col_begin,
-            col_end,
-            result.chunk_num,
-            &elements_row[i]);
-        simd_binary_search(
-            block_idx,
-            col_begin,
-            col_end,
-            result.chunk_num,
-            &elements_column[i]);
-#else
-        cached_binary_search(
-            chunk_idx,
-            col_begin,
-            col_end,
-            result.chunk_num,
-            &elements_row[i]);
-        cached_binary_search(
-            block_idx,
-            col_begin,
-            col_end,
-            result.chunk_num,
-            &elements_column[i]);
-#endif
-
-        for (int j = 0; j < 8; ++j) {
-            block_size[chunk_idx[j] * result.chunk_num + block_idx[j]] += 1;
-        }
-    }
-
-    for (; i < data_size; ++i) {
-        int chunk_idx = cached_binary_search_single(
-            col_begin,
-            col_end,
-            result.chunk_num,
-            elements_row[i]);
-        int block_idx = cached_binary_search_single(
-            col_begin,
-            col_end,
-            result.chunk_num,
-            elements_column[i]);
-
-        block_size[chunk_idx * result.chunk_num + block_idx] += 1;
-    }
-
-    int *chunk_block_off =
-        (int *)malloc(sizeof(int) * result.chunk_num * result.chunk_num);
-    memset(
-        chunk_block_off,
-        0,
-        sizeof(int) * result.chunk_num * result.chunk_num);
-
-    for (int chunk_idx = 0; chunk_idx < result.chunk_num; ++chunk_idx) {
-        auto &chunk = *result.chunks[chunk_idx].chunk;
-        int chunk_data_size = 0;
-        for (int block_idx = 0; block_idx < result.chunk_num; ++block_idx) {
-            auto &block = chunk.blocks[block_idx];
-            int idx = chunk_idx * result.chunk_num + block_idx;
-            block.block_off = chunk_data_size;
-            chunk_block_off[idx] = chunk_data_size;
-            chunk_data_size += block_size[idx];
-        }
-    }
-
-    for (i = 0; i < data_size; ++i) {
-        int block_idx = BSCache.data[elements_column[i]];
-        int chunk_idx = BSCache.data[elements_row[i]];
-        auto &chunk = *result.chunks[chunk_idx].chunk;
-        auto &idx = chunk_block_off[chunk_idx * result.chunk_num + block_idx];
-
-        chunk.row_idx[idx] = elements_row[i] - col_begin[chunk_idx];
-        chunk.col_idx[idx] = elements_column[i] - col_begin[block_idx];
-        chunk.data[idx] = elements_value[i];
-        idx += 1;
-    }
-
-    free(chunk_block_off);
-    free(block_size);
-    free(col_begin);
-    free(col_end);
-}
-
 extern void free_splited_coo(SplitedCooMatrix &mtx) {
     free(mtx.chunk_ranges);
     for (int i = 0; i < mtx.chunk_num; ++i) {
@@ -387,19 +323,22 @@ extern void free_splited_coo(SplitedCooMatrix &mtx) {
 extern SplitedCooMatrix
 ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     SplitedCooMatrix result;
-
     int row_num = ldu_matrix.cells;
 
-    int *elements_row =
-        (int *)malloc(sizeof(int) * (ldu_matrix.cells + ldu_matrix.faces * 2));
-    int *elements_column =
-        (int *)malloc(sizeof(int) * (ldu_matrix.cells + ldu_matrix.faces * 2));
-    double *elements_value = (double *)malloc(
-        sizeof(double) * (ldu_matrix.cells + ldu_matrix.faces * 2));
-    int data_size = 0;
+    int *mem = (int *)malloc(std::max(
+        sizeof(int) * ldu_matrix.cells,
+        sizeof(int) * (chunk_num * 2 + chunk_num * chunk_num * 2)));
+    int *col_begin = mem;
+    int *col_end = mem + chunk_num;
+    int *chunk_block_off = mem + chunk_num * 2;
+    int *block_size = mem + chunk_num * 2 + chunk_num * chunk_num;
+    int *row_size = mem;
 
-    int *row_size = (int *)malloc(sizeof(int) * row_num);
+    result.chunk_num = chunk_num;
+    result.chunk_ranges =
+        (CooChunkRange *)malloc(sizeof(CooChunkRange) * chunk_num);
 
+    int total_size = 0;
     for (int i = 0; i < ldu_matrix.cells; i++) {
         row_size[i] = 1;
     }
@@ -408,43 +347,16 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         row_size[ldu_matrix.uPtr[i]] += 1;
     }
 
-    memcpy(elements_row, ldu_matrix.uPtr, sizeof(int) * ldu_matrix.faces);
-    memcpy(
-        elements_row + ldu_matrix.faces,
-        ldu_matrix.lPtr,
-        sizeof(int) * ldu_matrix.faces);
-
-    memcpy(elements_column, ldu_matrix.lPtr, sizeof(int) * ldu_matrix.faces);
-    memcpy(
-        elements_column + ldu_matrix.faces,
-        ldu_matrix.uPtr,
-        sizeof(int) * ldu_matrix.faces);
-
-    memcpy(elements_value, ldu_matrix.lower, sizeof(double) * ldu_matrix.faces);
-    memcpy(
-        elements_value + ldu_matrix.faces,
-        ldu_matrix.upper,
-        sizeof(double) * ldu_matrix.faces);
-
-    data_size = 2 * ldu_matrix.faces;
-
-    memcpy(
-        elements_value + data_size,
-        ldu_matrix.diag,
-        sizeof(double) * ldu_matrix.cells);
-
-    for (int i = 0; i < ldu_matrix.cells; i++) {
-        elements_row[data_size + i] = i;
-        elements_column[data_size + i] = i;
+    for (int i = 0; i < row_num; ++i) {
+        total_size += row_size[i];
     }
 
-    data_size += ldu_matrix.cells;
-
-    result.chunk_num = chunk_num;
-
-    result.chunk_ranges =
-        (CooChunkRange *)malloc(sizeof(CooChunkRange) * chunk_num);
-    get_chunk_ranges(result.chunk_ranges, row_size, row_num, chunk_num);
+    get_chunk_ranges_and_init_bs_cache(
+        result.chunk_ranges,
+        row_size,
+        total_size,
+        row_num,
+        chunk_num);
 
     result.chunks = (SizedCooChunk *)malloc(sizeof(SizedCooChunk) * chunk_num);
     for (int i = 0; i < chunk_num; ++i) {
@@ -454,10 +366,7 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
 
         auto &chunk = *result.chunks[i].chunk;
 
-        int chunk_data_size = 0;
-        for (int j = 0; j < result.chunk_ranges[i].row_num; ++j) {
-            chunk_data_size += row_size[j + result.chunk_ranges[i].row_begin];
-        }
+        int chunk_data_size = result.chunk_ranges[i].size;
 
         chunk.row_begin = result.chunk_ranges[i].row_begin;
         chunk.row_end = chunk.row_begin + result.chunk_ranges[i].row_num;
@@ -477,16 +386,81 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         chunk.blocks[chunk.block_num].block_off = chunk_data_size;
     }
 
-    give_away_elements(
-        result,
-        data_size,
-        elements_row,
-        elements_column,
-        elements_value);
+    for (int i = 0; i < result.chunk_num; ++i) {
+        col_begin[i] = result.chunk_ranges[i].row_begin;
+        col_end[i] = col_begin[i] + result.chunk_ranges[i].row_num;
+    }
 
-    free(row_size);
-    free(elements_row);
-    free(elements_column);
-    free(elements_value);
+    memset(block_size, 0, sizeof(int) * chunk_num * chunk_num);
+    for (int i = 0; i < ldu_matrix.faces; ++i) {
+        int chunk_idx = cached_binary_search_single(
+            col_begin,
+            col_end,
+            result.chunk_num,
+            ldu_matrix.uPtr[i]);
+        int block_idx = cached_binary_search_single(
+            col_begin,
+            col_end,
+            result.chunk_num,
+            ldu_matrix.lPtr[i]);
+        block_size[chunk_idx * result.chunk_num + block_idx] += 1;
+        block_size[block_idx * result.chunk_num + chunk_idx] += 1;
+    }
+
+    for (int i = 0; i < ldu_matrix.cells; ++i) {
+        int idx = cached_binary_search_single(
+            col_begin,
+            col_end,
+            result.chunk_num,
+            i);
+        block_size[idx * result.chunk_num + idx] += 1;
+    }
+
+    memset(chunk_block_off, 0, sizeof(int) * chunk_num * chunk_num);
+    for (int chunk_idx = 0; chunk_idx < result.chunk_num; ++chunk_idx) {
+        auto &chunk = *result.chunks[chunk_idx].chunk;
+        int chunk_data_size = 0;
+        for (int block_idx = 0; block_idx < result.chunk_num; ++block_idx) {
+            auto &block = chunk.blocks[block_idx];
+            int idx = chunk_idx * result.chunk_num + block_idx;
+            block.block_off = chunk_data_size;
+            chunk_block_off[idx] = chunk_data_size;
+            chunk_data_size += block_size[idx];
+        }
+    }
+
+    for (int i = 0; i < ldu_matrix.faces; ++i) {
+        int idx1 = BSCache.data[ldu_matrix.uPtr[i]];
+        int idx2 = BSCache.data[ldu_matrix.lPtr[i]];
+        int idx_21 = chunk_block_off[idx2 * result.chunk_num + idx1];
+        chunk_block_off[idx2 * result.chunk_num + idx1] += 1;
+        int idx_12 = chunk_block_off[idx1 * result.chunk_num + idx2];
+        chunk_block_off[idx1 * result.chunk_num + idx2] += 1;
+
+        result.chunks[idx2].chunk->row_idx[idx_21] =
+            ldu_matrix.lPtr[i] - col_begin[idx2];
+        result.chunks[idx2].chunk->col_idx[idx_21] =
+            ldu_matrix.uPtr[i] - col_begin[idx1];
+        result.chunks[idx2].chunk->data[idx_21] = ldu_matrix.upper[i];
+
+        result.chunks[idx1].chunk->row_idx[idx_12] =
+            ldu_matrix.uPtr[i] - col_begin[idx1];
+        result.chunks[idx1].chunk->col_idx[idx_12] =
+            ldu_matrix.lPtr[i] - col_begin[idx2];
+        result.chunks[idx1].chunk->data[idx_12] = ldu_matrix.lower[i];
+    }
+
+    for (int i = 0; i < ldu_matrix.cells; ++i) {
+        int id = BSCache.data[i];
+        auto &chunk = *result.chunks[id].chunk;
+        auto &idx = chunk_block_off[id * result.chunk_num + id];
+        chunk.row_idx[idx] = i - col_begin[id];
+        chunk.col_idx[idx] = i - col_begin[id];
+        chunk.data[idx] = ldu_matrix.diag[i];
+        idx += 1;
+    }
+
+    free(mem);
+
     return result;
 }
