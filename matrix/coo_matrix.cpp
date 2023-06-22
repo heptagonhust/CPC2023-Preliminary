@@ -175,6 +175,7 @@ extern void free_splited_coo(SplitedCooMatrix &mtx) {
         free(chunk.col_idx);
         free(chunk.row_idx);
         free(chunk.data);
+        free(chunk.block_off);
         free(mtx.chunks[i].chunk);
     }
     free(mtx.chunks);
@@ -234,17 +235,18 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
         chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
         chunk.data = (double *)malloc(sizeof(double) * chunk_data_size);
+        chunk.block_off = (int *)malloc(sizeof(int) * (chunk_num + 1));
         chunk.block_num = chunk_num;
 
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
             block.row_num = chunk.row_end - chunk.row_begin;
             block.col_begin = result.chunk_ranges[j].row_begin;
-            block.block_off = 0;
+            chunk.block_off[j] = 0;
         }
         chunk.blocks[chunk.block_num].row_num = 0;
         chunk.blocks[chunk.block_num].col_begin = row_num;
-        chunk.blocks[chunk.block_num].block_off = chunk_data_size;
+        chunk.block_off[chunk.block_num] = chunk_data_size;
     }
 
     for (int i = 0; i < result.chunk_num; ++i) {
@@ -276,7 +278,8 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         for (int block_idx = 0; block_idx < result.chunk_num; ++block_idx) {
             auto &block = chunk.blocks[block_idx];
             int idx = chunk_idx * result.chunk_num + block_idx;
-            block.block_off = chunk_data_size;
+            chunk.block_off[block_idx] = chunk_data_size;
+            chunk.block_off[block_idx] = chunk_data_size;
             chunk_block_off[idx] = chunk_data_size;
             chunk_data_size += block_size[idx];
         }

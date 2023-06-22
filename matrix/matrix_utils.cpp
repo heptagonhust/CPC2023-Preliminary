@@ -208,7 +208,7 @@ plain_matrix_from_splited_coo(const SplitedCooMatrix &splited_matrix) {
         auto &chunk = *(splited_matrix.chunks[i].chunk);
         for (int j = 0; j < chunk.block_num; ++j) {
             auto &block = chunk.blocks[j];
-            auto data_size = chunk.blocks[j + 1].block_off - block.block_off;
+            auto data_size = chunk.block_off[j + 1] - chunk.block_off[j];
 
             auto col_begin = block.col_begin;
             auto col_end = chunk.blocks[j + 1].col_begin;
@@ -220,17 +220,19 @@ plain_matrix_from_splited_coo(const SplitedCooMatrix &splited_matrix) {
                     int idx = -1;
                     for (int w = 0; w < data_size; ++w) {
                         int row =
-                            chunk.row_idx[w + block.block_off] + row_begin;
+                            chunk.row_idx[w + chunk.block_off[j]] + row_begin;
                         int col =
-                            chunk.col_idx[w + block.block_off] + col_begin;
+                            chunk.col_idx[w + chunk.block_off[j]] + col_begin;
                         if (row == u && col == v) {
                             idx = w;
                             break;
                         }
                     }
                     if (idx >= 0) {
-                        tmp.push_back((
-                            Element) {u, v, chunk.data[idx + block.block_off]});
+                        tmp.push_back((Element) {
+                            u,
+                            v,
+                            chunk.data[idx + chunk.block_off[j]]});
                     } else {
                         tmp.push_back((Element) {u, v, 0});
                     }
