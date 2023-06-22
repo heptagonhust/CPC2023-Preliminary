@@ -195,7 +195,7 @@ plain_matrix_from_splited_coo(const SplitedCooMatrix &splited_matrix) {
         int row, column;
         double value;
 
-        bool operator<(const Element &another) {
+        bool operator<(const Element &another) const {
             if (row == another.row) {
                 return column < another.column;
             }
