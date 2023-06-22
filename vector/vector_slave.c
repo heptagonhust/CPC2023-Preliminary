@@ -35,7 +35,7 @@ inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec
 inline void slave_Mul(double *z, double *M_1, double *r, int vec_num) {
     double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
     double *end_z = z + vec_num;
-    double *round_z = (double *)((uintptr_t)z & ~63);
+    double *round_z = (double *)((uintptr_t)end_z & ~63);
     for (; z < aligned_z; ++z, ++M_1, ++r) {
         *z = *M_1 * *r;
     }
@@ -152,7 +152,7 @@ inline double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *red
 inline void slave_Updatexr(double *x, double *r, double *p, double *Ax, double alpha, int vec_num) {
     double *aligned_p = (double *)(((uintptr_t)p + 63) & ~63);
     double *end_p = p + vec_num;
-    double *round_p = (double *)((uintptr_t)p & ~63);
+    double *round_p = (double *)((uintptr_t)end_p & ~63);
     for (; p < aligned_p; ++x, ++r, ++p, ++Ax) {
         *x += alpha * *p;
         *r -= alpha * *Ax;
