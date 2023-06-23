@@ -106,13 +106,13 @@ inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
     for (; r < aligned_r; ++r) {
         local_sum += fabs(*r);
     }
-    doublev8 local_sum8, r8, r8_neg;
+    doublev8 local_sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.), r8, r8_neg;
     for (; r < round_r; r += 8) {
         simd_load(r8, r);
         r8_neg = -r8;
         local_sum8 += simd_vfselltd(r8, r8_neg, r8);
     }
-    local_sum = simd_reduc_plusd(local_sum8);
+    local_sum += simd_reduc_plusd(local_sum8);
     for (; r < end_r; ++r) {
         local_sum += fabs(*r);
     }
