@@ -34,13 +34,13 @@ inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, doub
 inline static void slave_init_M_1(double *M, double *M_1, int vec_num) {
     int i;
     doublev8 M8, M_18;
-    for (i = 0; i < vec_num; i += 8) {
+    for (i = 0; i < vec_num - 8; i += 8) {
         simd_load(M8, M + i);
         M_18 = simd_vfrecpd(M8);
         simd_store(M_18, M_1 + i);
     }
 
-    for (i -= 8; i < vec_num; ++i) {
+    for (; i < vec_num; ++i) {
         M_1[i] = 1.0 / M[i];
     }
 }
