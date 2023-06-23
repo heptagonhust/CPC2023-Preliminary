@@ -106,12 +106,25 @@ inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
     for (; r < aligned_r; ++r) {
         local_sum += fabs(*r);
     }
-    doublev8 local_sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.), r8, r8_neg;
+
+    union {
+        double f64;
+        int64_t i64;
+    } mask;
+    mask.i64 = 0x7fffffffffffffff;
+
+    doublev8 local_sum8 = simd_vcpyfd(0.);
+    union {
+        int512 i64v8;
+        doublev8 f64v8;
+    } r8, mask8;
+    mask8.f64v8 = simd_vcpyfd(mask.f64);
     for (; r < round_r; r += 8) {
-        simd_load(r8, r);
-        r8_neg = -r8;
-        local_sum8 += simd_vfselltd(r8, r8_neg, r8);
+        simd_load(r8.f64v8, r);
+        r8.i64v8 &= mask8.i64v8;
+        local_sum8 += r8.f64v8;
     }
+
     local_sum += simd_reduc_plusd(local_sum8);
     for (; r < end_r; ++r) {
         local_sum += fabs(*r);
@@ -124,7 +137,7 @@ inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
 
 inline double slave_MulReduceZR(double *r, double *z, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    doublev8 r8, z8, tmp, sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.);
+    doublev8 r8, z8, tmp, sum8 = simd_vcpyfd(0.);
     int round = vec_num / 8;
     for (int i = 0, off = 0; i < round; ++i, off += 8) {
         simd_loadu(r8, r + off);
@@ -144,7 +157,7 @@ inline double slave_MulReduceZR(double *r, double *z, int vec_num, double *reduc
 
 inline double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    doublev8 p8, Ax8, tmp, local_sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.);
+    doublev8 p8, Ax8, tmp, local_sum8 = simd_vcpyfd(0.);
     int round = vec_num / 8;
     for (int i = 0, off = 0; i < round; ++i, off += 8) {
         simd_loadu(p8, p + off);
