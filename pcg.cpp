@@ -33,9 +33,7 @@ PCGReturn pcg_solve(
 
     PCG pcg;
     pcg.r = (double *)malloc(cells * sizeof(double));
-    pcg.z = (double *)malloc(cells * sizeof(double));
     pcg.p = (double *)malloc(cells * sizeof(double));
-    pcg.Ax = (double *)malloc(cells * sizeof(double));
     pcg.x = x;
     pcg.source = source;
 
@@ -138,9 +136,7 @@ void pcg_precondition_coo_opt(
 
 void free_pcg(PCG &pcg) {
     free(pcg.r);
-    free(pcg.z);
     free(pcg.p);
-    free(pcg.Ax);
 }
 
 void free_precondition(Precondition &pre) {

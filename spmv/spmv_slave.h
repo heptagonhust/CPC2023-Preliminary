@@ -7,18 +7,26 @@
 #include <slave.h>
 #include <string.h>
 
-/// 在从核上计算 csc 格式的稀疏矩阵乘向量(spmv)
-///
-/// * `para_mp` - 从核计算所需要参数在主存中的地址
+typedef struct {
+    double *buff[2];
+    int size;
+    int in_use;
+} DoubleBuffering;
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void slave_coo_spmv(CooChunk *chunk, double *vec, double *result);
+  void slave_coo_spmv(CooChunk *chunk, double *vec, double **vec_list, double *result, DoubleBuffering *buff, uint16_t non_0_block_num, uint16_t *non_0_block_idx);
 
 #ifdef __cplusplus
 }
 #endif
+
+
+void slave_double_buffering_new(DoubleBuffering *buff, int size);
+void* slave_double_buffering_get(DoubleBuffering *buff);
+void slave_double_buffering_free(DoubleBuffering *buff);
 
 #endif

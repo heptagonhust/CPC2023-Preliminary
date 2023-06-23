@@ -33,7 +33,7 @@ coo_matrix.o: matrix/coo_matrix.cpp spmv/spmv_def.h pcg.h
 matrix_utils.o: matrix/matrix_utils.cpp pcg_def.h
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
-spmv_slave.o: spmv/spmv_slave.c spmv/spmv_def.h slave_def.h
+spmv_slave.o: spmv/spmv_slave.c spmv/spmv_slave.h spmv/spmv_def.h slave_def.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 vector_slave.o: vector/vector_slave.c vector/vector_def.h
