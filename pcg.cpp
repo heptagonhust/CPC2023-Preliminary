@@ -40,7 +40,7 @@ PCGReturn pcg_solve(
     pcg.source = source;
 
     double *preD = (double *)malloc(cells * sizeof(double));
-    double *M = (double *)malloc(cells * sizeof(double));
+    double *M = ldu_matrix.diag;
 
     CRTS_init();
 
@@ -62,7 +62,6 @@ PCGReturn pcg_solve(
     // Spmv parameter generation
     SpmvPara para_A;
     spmv_para_from_splited_coo_matrix(&splited_matrix, &para_A, cells, cells);
-    pcg_init_precondition_ldu(ldu_matrix, preD, M);
 
     memcpy(pcg.p, pcg.x, cells * sizeof(double));
     memcpy(pcg.r, source, cells * sizeof(double));
@@ -75,7 +74,6 @@ PCGReturn pcg_solve(
     para.r = pcg.r;
     para.x = pcg.x;
     para.M = M;
-    para.M_1 = preD;
     para.spmv_para = &para_A;
     memcpy(&para.ntask, &ntask, SLAVE_CORE_NUM * sizeof(Slave_task));
     para.init_residual = &init_residual;
@@ -91,23 +89,12 @@ PCGReturn pcg_solve(
         iter);
 
     free(preD);
-    free(M);
     free_pcg(pcg);
 
     PCGReturn pcg_return;
     pcg_return.residual = pcg.residual;
     pcg_return.iter = iter;
     return pcg_return;
-}
-
-void pcg_init_precondition_ldu(
-    const LduMatrix &ldu_matrix,
-    double *preD,
-    double *M) {
-    for (int i = 0; i < ldu_matrix.cells; i++) {
-        preD[i] = 1.0 / ldu_matrix.diag[i];
-        M[i] = ldu_matrix.diag[i];
-    }
 }
 
 void pcg_precondition_coo_opt(

@@ -1,6 +1,7 @@
 #include <slave.h>
 #include <crts.h>
 #include <math.h>
+#include <simd.h>
 #include "vector_def.h"
 #include "spmv_def.h"
 #include "spmv_slave.h"
@@ -17,7 +18,6 @@ __thread_local unsigned int put_cnt = 0;
 __thread_local_share double p[MAX_CELL_NUM] __attribute__((aligned(64)));
 __thread_local_share double z[MAX_CELL_NUM] __attribute__((aligned(64)));
 __thread_local double reduce_buf[REDUCE_BUF_SIZE] __attribute__((aligned(64)));
-__thread_local int cells;
 
 //TODO can be optimized
 inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin) {
@@ -31,6 +31,20 @@ inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, doub
     }
 }
 
+inline static void slave_init_M_1(double *M, double *M_1, int vec_num) {
+    int i;
+    doublev8 M8, M_18;
+    for (i = 0; i < vec_num; i += 8) {
+        simd_load(M8, M + i);
+        M_18 = simd_vfrecpd(M8);
+        simd_store(M_18, M_1 + i);
+    }
+
+    for (i -= 8; i < vec_num; ++i) {
+        M_1[i] = 1.0 / M[i];
+    }
+}
+
 void slave_MainLoop(MainLoopPara *para_mem) {
     int id = CRTS_tid;
     //* get meta data
@@ -39,9 +53,11 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     int vec_begin = para.ntask[id].col_start;
     int vec_num = para.ntask[id].col_num;
     SpmvPara spmv_para;
-    DMA_GET(&spmv_para, para.spmv_para, sizeof(SpmvPara), &get_rply, get_cnt);
-
-    cells = spmv_para.sp_col;
+    double *M = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
+    double *M_1 = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
+    DMA_IGET(&spmv_para, para.spmv_para, sizeof(SpmvPara), &get_rply, get_cnt);
+    DMA_IGET(M, para.M + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
+    DMA_WAIT(&get_rply, get_cnt);
 
     CooChunk *chunk = (CooChunk *)CRTS_pldm_malloc(spmv_para.chunks[id].mem_size);
     DMA_IGET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
@@ -50,14 +66,13 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     double *g = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *x = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *Ax = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
-    double *M = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
-    double *M_1 = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     DMA_IGET(r, para.r + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
     DMA_IGET(x, para.x + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
-    DMA_IGET(M, para.M + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
-    DMA_IGET(M_1, para.M_1 + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
-    CRTS_memcpy_sldm(&p, para.p, spmv_para.sp_col * sizeof(double), MEM_TO_LDM);
+
+    slave_init_M_1(M, M_1, vec_num);
+
     DMA_WAIT(&get_rply, get_cnt);
+    CRTS_memcpy_sldm(&p, para.p, spmv_para.sp_col * sizeof(double), MEM_TO_LDM);
     //* get spmv chunk data
     int chunk_data_size = chunk->blocks[chunk->block_num].block_off;
     if (chunk_data_size % 2) chunk_data_size++;
