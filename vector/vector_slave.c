@@ -13,16 +13,12 @@ __thread_local double simd_arr[SIMD_WIDTH] __attribute__((aligned(64)));
 // --------------------------------------------------------------------------------
 
 inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start) {
-    int front = 8 - vec_start % 8;
-    int round = (vec_num - front) / 8;
-    int end = (vec_num - front) % 8;
+    int round = vec_num / 8;
+    int end = vec_num % 8;
     int off = 0;
     doublev8 p8, z8, beta8;
     for (int i = 0; i < 8; ++i) simd_arr[i] = beta;
     simd_load(beta8, simd_arr);
-    for (; off < front; ++off) {
-        p[off] = z[off] + beta * p[off];
-    }
     for (int i = 0; i < round; ++i, off += 8) {
         simd_load(p8, p + off);
         simd_load(z8, z + off);
