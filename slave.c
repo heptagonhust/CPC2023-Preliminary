@@ -6,6 +6,7 @@
 #include "spmv_def.h"
 #include "spmv_slave.h"
 #include "slave_def.h"
+#include "perf.h"
 
 __thread_local crts_rply_t get_rply = 0;
 __thread_local unsigned int get_cnt = 0;
@@ -23,6 +24,8 @@ __thread_local double reduce_buf[REDUCE_BUF_SIZE] __attribute__((aligned(64)));
 __thread_local uint16_t non_0_block_idx[BLOCK_SIZE] __attribute__((aligned(64)));
 __thread_local_share double* z_list[BLOCK_SIZE] __attribute__((aligned(64)));
 __thread_local_share double* p_list[BLOCK_SIZE] __attribute__((aligned(64)));
+
+__thread_local PerfEnv env;
 
 
 inline void get_non_0_blocks(CooChunk *chunk) {
@@ -43,11 +46,13 @@ inline void get_non_0_blocks(CooChunk *chunk) {
 }
 
 //TODO can be optimized
-inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin, DoubleBuffering *buff) {
+inline static void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, double *r, double *z, double *g, int vec_num, int vec_begin, DoubleBuffering *buff) {
     slave_Mul(z, M_1, r, vec_num);
     for (int deg = 1; deg < 2; deg++) {
         CRTS_ssync_array();
+slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV");
         slave_coo_spmv(chunk, z, z_list, g, buff, non_0_block_num, &non_0_block_idx[0]);
+slave_perf_end(&env, "SPMV");
         slave_MulSub(g, z, M, vec_num);
         slave_SubMul(z, r, g, M_1, vec_num);
     }
@@ -68,6 +73,9 @@ inline static void slave_init_M_1(double *M, double *M_1, int vec_num) {
 }
 
 void slave_MainLoop(MainLoopPara *para_mem) {
+slave_init_perf_env(&env, 0);
+slave_perf_begin(&env, PERF_INCLUSIVE, "Main Loop");
+slave_perf_begin(&env, PERF_EXCLUSIVE, "DMA GET DATA");
     int id = CRTS_tid;
     
     // get meta data
@@ -126,8 +134,13 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     else {
         printf("[ERROR] Coo matrix size is more than expected!\n");
     }
+slave_perf_end(&env, "DMA GET DATA");
+
+slave_perf_begin(&env, PERF_INCLUSIVE, "DATA PROCESSING");
     CRTS_ssync_array();
+slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV");
     slave_coo_spmv(chunk, p, p_list, Ax, &buffer, non_0_block_num, &non_0_block_idx[0]);
+slave_perf_end(&env, "SPMV");
     for (int i = 0; i < vec_num; ++i) {
         r[i] = r[i] - Ax[i];
     }
@@ -152,12 +165,15 @@ void slave_MainLoop(MainLoopPara *para_mem) {
                 slave_MulAdd(p, z, beta, vec_num, vec_begin);
             }
             CRTS_ssync_array();
+slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV");
             slave_coo_spmv(chunk, p, p_list, Ax, &buffer, non_0_block_num, &non_0_block_idx[0]);
+slave_perf_end(&env, "SPMV");
             alpha = sumprod / slave_MulReducepAx(p, Ax, vec_num, &reduce_buf[0]);
             slave_Updatexr(x, r, p, Ax, alpha, vec_num);
             residual = slave_Reduce(r, vec_num, &reduce_buf[0]);
         } while (++iter < para.maxIter && (residual / para.normfactor) >= para.tolerance);
     }
+    slave_perf_end(&env, "DATA PROCESSING");
     DMA_IPUT(para.init_residual, &init_residual, sizeof(double), &put_rply, put_cnt);
     DMA_IPUT(para.final_residual, &residual, sizeof(double), &put_rply, put_cnt);
     DMA_IPUT(para.iter, &iter, sizeof(int), &put_rply, put_cnt);
@@ -176,4 +192,6 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     CRTS_pldm_free(M_1, vec_num * sizeof(double));
     CRTS_pldm_free(chunk, spmv_para.chunks[id].mem_size);
     DMA_WAIT(&put_rply, put_cnt);
+slave_perf_end(&env, "Main Loop");
+if (id == 0) slave_perf_report(&env);
 }

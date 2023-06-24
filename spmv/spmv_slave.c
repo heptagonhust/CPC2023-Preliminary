@@ -2,6 +2,7 @@
 #include "crts.h"
 #include "swperf.h"
 #include "spmv_def.h"
+#include "perf.h"
 
 #define SLAVE_CORE_NUM 64
 
@@ -9,6 +10,8 @@ __thread_local crts_rply_t rma_get_rply = 0;
 __thread_local unsigned int rma_get_cnt = 0;
 __thread_local crts_rply_t rma_remote_get_rply = 0;
 __thread_local unsigned int rma_remote_get_cnt = 0;
+
+extern __thread_local PerfEnv env;
 
 inline void slave_double_buffering_new(DoubleBuffering *buff, int size) {
     buff->size = size;
@@ -33,6 +36,7 @@ inline void slave_coo_spmv(CooChunk *chunk, double *vec, double **vec_list, doub
     int rows = chunk->row_end - chunk->row_begin;
     memset(result, 0, rows * sizeof(double));
 
+slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV Calculate");
     int block_data_size, next_vec_size;
     double *vec_buf, *rma_buf;
     if (non_0_block_idx[0] == id) {
@@ -44,9 +48,11 @@ inline void slave_coo_spmv(CooChunk *chunk, double *vec, double **vec_list, doub
             ++rma_get_cnt;
         }
         int block_data_offset = chunk->blocks[id].block_off;
+// slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV Calculate");
         for (int j = 0; j < block_data_size; ++j) {
             result[chunk->row_idx[block_data_offset + j]] += chunk->data[block_data_offset + j] * vec[chunk->col_idx[block_data_offset + j]];
         }
+// slave_perf_end(&env, "SPMV Calculate");
     }
 
     for (int i = 1; i < non_0_block_num; ++i) {
@@ -61,9 +67,12 @@ inline void slave_coo_spmv(CooChunk *chunk, double *vec, double **vec_list, doub
         }
 
         int block_data_offset = chunk->blocks[non_0_block_idx[i]].block_off;
+// slave_perf_begin(&env, PERF_INCLUSIVE, "SPMV Calculate");
         for (int j = 0; j < block_data_size; ++j) {
             result[chunk->row_idx[block_data_offset + j]] += chunk->data[block_data_offset + j] * vec_buf[chunk->col_idx[block_data_offset + j]];
         }
+// slave_perf_end(&env, "SPMV Calculate");
     }
+slave_perf_end(&env, "SPMV Calculate");
     CRTS_ssync_array();
 }

@@ -1,0 +1,1075 @@
+Job <5442654> has been submitted to queue <q_sw_cpc2023>
+waiting for dispatch ...
+[2023- 6-24] [16: 8:23] [INFO] Mesh >> read mesh!
+[2023- 6-24] [16: 8:25] [INFO] Step >> Main solve start!
+
+[2023- 6-24] [16: 8:25] [INFO] Step >> mesh : 1, run time: 0.00
+[2023- 6-24] [16: 8:25] [INFO] split time: 0.0130s
+unit_name           |clocks              |          percentage
+
+Main Loop           |721490615           |              100.00%
+DATA PROCESSING     |721400714           |               99.99%
+SPMV                |707222623           |               98.02%
+SPMV Calculate      |35708530            |                4.95%
+DMA GET DATA        |62075               |                0.01%
+SPMV RMA            |41318               |                0.01%
+[2023- 6-24] [16: 8:26] [INFO] PCG: init residual = 1.816396e+12, final residual = 8.472088e-11, iterations: 141
+[2023- 6-24] [16: 8:26] [INFO] Step >> run time: 0.00, time cost: 0.3637s
+[2023- 6-24] [16: 8:26] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:26] [INFO] Step >> mesh : 1, run time: 0.01
+[2023- 6-24] [16: 8:26] [INFO] split time: 0.0097s
+unit_name           |clocks              |          percentage
+
+Main Loop           |573603492           |              100.00%
+DATA PROCESSING     |573481917           |               99.98%
+SPMV                |562271120           |               98.02%
+SPMV Calculate      |28389316            |                4.95%
+DMA GET DATA        |93571               |                0.02%
+SPMV RMA            |32850               |                0.01%
+[2023- 6-24] [16: 8:26] [INFO] PCG: init residual = 1.453117e+07, final residual = 7.221247e-11, iterations: 112
+[2023- 6-24] [16: 8:26] [INFO] Step >> run time: 0.01, time cost: 0.2882s
+[2023- 6-24] [16: 8:26] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:26] [INFO] Step >> mesh : 1, run time: 0.02
+[2023- 6-24] [16: 8:26] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |716309558           |              100.00%
+DATA PROCESSING     |716179626           |               99.98%
+SPMV                |702230800           |               98.03%
+SPMV Calculate      |35455052            |                4.95%
+DMA GET DATA        |101459              |                0.01%
+SPMV RMA            |41028               |                0.01%
+[2023- 6-24] [16: 8:26] [INFO] PCG: init residual = 1.271477e+12, final residual = 8.821883e-11, iterations: 140
+[2023- 6-24] [16: 8:26] [INFO] Step >> run time: 0.02, time cost: 0.3569s
+[2023- 6-24] [16: 8:26] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:26] [INFO] Step >> mesh : 1, run time: 0.03
+[2023- 6-24] [16: 8:26] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |201588224           |              100.00%
+DATA PROCESSING     |201468419           |               99.94%
+SPMV                |197419968           |               97.93%
+SPMV Calculate      |9967804             |                4.94%
+DMA GET DATA        |93778               |                0.05%
+SPMV RMA            |11535               |                0.01%
+[2023- 6-24] [16: 8:26] [INFO] PCG: init residual = 9.081982e-05, final residual = 8.856953e-11, iterations: 39
+[2023- 6-24] [16: 8:26] [INFO] Step >> run time: 0.03, time cost: 0.1082s
+[2023- 6-24] [16: 8:26] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:26] [INFO] Step >> mesh : 1, run time: 0.04
+[2023- 6-24] [16: 8:26] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |206689566           |              100.00%
+DATA PROCESSING     |206575197           |               99.94%
+SPMV                |202422623           |               97.94%
+SPMV Calculate      |10220152            |                4.94%
+DMA GET DATA        |91575               |                0.04%
+SPMV RMA            |11826               |                0.01%
+[2023- 6-24] [16: 8:26] [INFO] PCG: init residual = 1.089838e-04, final residual = 7.796575e-11, iterations: 40
+[2023- 6-24] [16: 8:26] [INFO] Step >> run time: 0.04, time cost: 0.1107s
+[2023- 6-24] [16: 8:26] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:26] [INFO] Step >> mesh : 1, run time: 0.05
+[2023- 6-24] [16: 8:26] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |247436246           |              100.00%
+DATA PROCESSING     |247315147           |               99.95%
+SPMV                |242383788           |               97.96%
+SPMV Calculate      |12238963            |                4.95%
+DMA GET DATA        |97513               |                0.04%
+SPMV RMA            |14162               |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 1.816396e-03, final residual = 7.555154e-11, iterations: 48
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.05, time cost: 0.1304s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.06
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |380095141           |              100.00%
+DATA PROCESSING     |379978766           |               99.97%
+SPMV                |372488463           |               98.00%
+SPMV Calculate      |18800022            |                4.95%
+DMA GET DATA        |91711               |                0.02%
+SPMV RMA            |21755               |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 1.634757e+01, final residual = 8.228232e-11, iterations: 74
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.06, time cost: 0.1945s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.07
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |685745355           |              100.00%
+DATA PROCESSING     |685643863           |               99.99%
+SPMV                |672232890           |               98.03%
+SPMV Calculate      |33941021            |                4.95%
+DMA GET DATA        |80031               |                0.01%
+SPMV RMA            |39277               |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 1.271477e+11, final residual = 6.957401e-11, iterations: 134
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.07, time cost: 0.3421s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.08
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |247471393           |              100.00%
+DATA PROCESSING     |247359745           |               99.95%
+SPMV                |242409117           |               97.95%
+SPMV Calculate      |12238946            |                4.95%
+DMA GET DATA        |87808               |                0.04%
+SPMV RMA            |14163               |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 1.634757e-03, final residual = 6.799638e-11, iterations: 48
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.08, time cost: 0.1305s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.09
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0100s
+unit_name           |clocks              |          percentage
+
+Main Loop           |221988912           |              100.00%
+DATA PROCESSING     |221877497           |               99.95%
+SPMV                |217430272           |               97.95%
+SPMV Calculate      |10977194            |                4.94%
+DMA GET DATA        |90681               |                0.04%
+SPMV RMA            |12703               |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 3.632793e-04, final residual = 8.696816e-11, iterations: 43
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.09, time cost: 0.1186s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.10
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |23207147            |              100.00%
+DATA PROCESSING     |23099143            |               99.53%
+SPMV                |22488088            |               96.90%
+SPMV Calculate      |1135567             |                4.89%
+DMA GET DATA        |82397               |                0.36%
+SPMV RMA            |1314                |                0.01%
+[2023- 6-24] [16: 8:27] [INFO] PCG: init residual = 1.816396e-09, final residual = 8.633875e-11, iterations: 4
+[2023- 6-24] [16: 8:27] [INFO] Step >> run time: 0.10, time cost: 0.0221s
+[2023- 6-24] [16: 8:27] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:27] [INFO] Step >> mesh : 1, run time: 0.11
+[2023- 6-24] [16: 8:27] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |196480445           |              100.00%
+DATA PROCESSING     |196371076           |               99.94%
+SPMV                |192419259           |               97.93%
+SPMV Calculate      |9715423             |                4.94%
+DMA GET DATA        |85584               |                0.04%
+SPMV RMA            |11243               |                0.01%
+[2023- 6-24] [16: 8:28] [INFO] PCG: init residual = 7.265586e-05, final residual = 9.524868e-11, iterations: 38
+[2023- 6-24] [16: 8:28] [INFO] Step >> run time: 0.11, time cost: 0.1057s
+[2023- 6-24] [16: 8:28] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:28] [INFO] Step >> mesh : 1, run time: 0.12
+[2023- 6-24] [16: 8:28] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |456414764           |              100.00%
+DATA PROCESSING     |456316109           |               99.98%
+SPMV                |447335245           |               98.01%
+SPMV Calculate      |22585269            |                4.95%
+DMA GET DATA        |74578               |                0.02%
+SPMV RMA            |26134               |                0.01%
+[2023- 6-24] [16: 8:28] [INFO] PCG: init residual = 9.081982e+03, final residual = 9.819557e-11, iterations: 89
+[2023- 6-24] [16: 8:28] [INFO] Step >> run time: 0.12, time cost: 0.2313s
+[2023- 6-24] [16: 8:28] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:28] [INFO] Step >> mesh : 1, run time: 0.13
+[2023- 6-24] [16: 8:28] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |604192981           |              100.00%
+DATA PROCESSING     |604083495           |               99.98%
+SPMV                |592251115           |               98.02%
+SPMV Calculate      |29903393            |                4.95%
+DMA GET DATA        |85656               |                0.01%
+SPMV RMA            |34604               |                0.01%
+[2023- 6-24] [16: 8:28] [INFO] PCG: init residual = 1.816396e+08, final residual = 8.187357e-11, iterations: 118
+[2023- 6-24] [16: 8:28] [INFO] Step >> run time: 0.13, time cost: 0.3027s
+[2023- 6-24] [16: 8:28] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:28] [INFO] Step >> mesh : 1, run time: 0.14
+[2023- 6-24] [16: 8:28] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |430983028           |              100.00%
+DATA PROCESSING     |430863964           |               99.97%
+SPMV                |422357590           |               98.00%
+SPMV Calculate      |21323533            |                4.95%
+DMA GET DATA        |95926               |                0.02%
+SPMV RMA            |24675               |                0.01%
+[2023- 6-24] [16: 8:28] [INFO] PCG: init residual = 1.089838e+03, final residual = 8.520668e-11, iterations: 84
+[2023- 6-24] [16: 8:28] [INFO] Step >> run time: 0.14, time cost: 0.2191s
+[2023- 6-24] [16: 8:28] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:28] [INFO] Step >> mesh : 1, run time: 0.15
+[2023- 6-24] [16: 8:28] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |13020943            |              100.00%
+DATA PROCESSING     |12904084            |               99.10%
+SPMV                |12499138            |               95.99%
+SPMV Calculate      |630871              |                4.85%
+DMA GET DATA        |93401               |                0.72%
+SPMV RMA            |730                 |                0.01%
+[2023- 6-24] [16: 8:28] [INFO] PCG: init residual = 5.449189e-10, final residual = 6.268398e-11, iterations: 2
+[2023- 6-24] [16: 8:28] [INFO] Step >> run time: 0.15, time cost: 0.0171s
+[2023- 6-24] [16: 8:28] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:28] [INFO] Step >> mesh : 1, run time: 0.16
+[2023- 6-24] [16: 8:28] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |512467043           |              100.00%
+DATA PROCESSING     |512354820           |               99.98%
+SPMV                |502287610           |               98.01%
+SPMV Calculate      |25361110            |                4.95%
+DMA GET DATA        |90449               |                0.02%
+SPMV RMA            |29348               |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 5.449189e+05, final residual = 7.941579e-11, iterations: 100
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.16, time cost: 0.2584s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.17
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |344247620           |              100.00%
+DATA PROCESSING     |344124879           |               99.96%
+SPMV                |337336686           |               97.99%
+SPMV Calculate      |17033588            |                4.95%
+DMA GET DATA        |98345               |                0.03%
+SPMV RMA            |19711               |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 1.634757e+00, final residual = 9.053689e-11, iterations: 67
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.17, time cost: 0.1771s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.18
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |308732813           |              100.00%
+DATA PROCESSING     |308620223           |               99.96%
+SPMV                |302480982           |               97.97%
+SPMV Calculate      |15267133            |                4.95%
+DMA GET DATA        |87968               |                0.03%
+SPMV RMA            |17666               |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 1.089838e-01, final residual = 7.483715e-11, iterations: 60
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.18, time cost: 0.1600s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.19
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |165894129           |              100.00%
+DATA PROCESSING     |165786529           |               99.94%
+SPMV                |162435596           |               97.92%
+SPMV Calculate      |8201330             |                4.94%
+DMA GET DATA        |88557               |                0.05%
+SPMV RMA            |9490                |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 9.081982e-06, final residual = 9.589138e-11, iterations: 32
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.19, time cost: 0.0910s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.20
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |206657071           |              100.00%
+DATA PROCESSING     |206528388           |               99.94%
+SPMV                |202405458           |               97.94%
+SPMV Calculate      |10220140            |                4.95%
+DMA GET DATA        |104221              |                0.05%
+SPMV RMA            |11827               |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 1.089838e-04, final residual = 7.796575e-11, iterations: 40
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.20, time cost: 0.1107s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.21
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |410507575           |              100.00%
+DATA PROCESSING     |410393193           |               99.97%
+SPMV                |402323569           |               98.01%
+SPMV Calculate      |20314127            |                4.95%
+DMA GET DATA        |90641               |                0.02%
+SPMV RMA            |23509               |                0.01%
+[2023- 6-24] [16: 8:29] [INFO] PCG: init residual = 1.634757e+02, final residual = 7.870906e-11, iterations: 80
+[2023- 6-24] [16: 8:29] [INFO] Step >> run time: 0.21, time cost: 0.2092s
+[2023- 6-24] [16: 8:29] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:29] [INFO] Step >> mesh : 1, run time: 0.22
+[2023- 6-24] [16: 8:29] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |430913732           |              100.00%
+DATA PROCESSING     |430787749           |               99.97%
+SPMV                |422321671           |               98.01%
+SPMV Calculate      |21323540            |                4.95%
+DMA GET DATA        |103668              |                0.02%
+SPMV RMA            |24675               |                0.01%
+[2023- 6-24] [16: 8:30] [INFO] PCG: init residual = 9.081982e+02, final residual = 7.100557e-11, iterations: 84
+[2023- 6-24] [16: 8:30] [INFO] Step >> run time: 0.22, time cost: 0.2190s
+[2023- 6-24] [16: 8:30] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:30] [INFO] Step >> mesh : 1, run time: 0.23
+[2023- 6-24] [16: 8:30] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |247457224           |              100.00%
+DATA PROCESSING     |247344400           |               99.95%
+SPMV                |242418101           |               97.96%
+SPMV Calculate      |12238930            |                4.95%
+DMA GET DATA        |91088               |                0.04%
+SPMV RMA            |14163               |                0.01%
+[2023- 6-24] [16: 8:30] [INFO] PCG: init residual = 1.816396e-03, final residual = 7.555154e-11, iterations: 48
+[2023- 6-24] [16: 8:30] [INFO] Step >> run time: 0.23, time cost: 0.1304s
+[2023- 6-24] [16: 8:30] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:30] [INFO] Step >> mesh : 1, run time: 0.24
+[2023- 6-24] [16: 8:30] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |364647087           |              100.00%
+DATA PROCESSING     |364543872           |               99.97%
+SPMV                |357327679           |               97.99%
+SPMV Calculate      |18042999            |                4.95%
+DMA GET DATA        |82074               |                0.02%
+SPMV RMA            |20880               |                0.01%
+[2023- 6-24] [16: 8:30] [INFO] PCG: init residual = 5.449189e+00, final residual = 7.369461e-11, iterations: 71
+[2023- 6-24] [16: 8:30] [INFO] Step >> run time: 0.24, time cost: 0.1870s
+[2023- 6-24] [16: 8:30] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:30] [INFO] Step >> mesh : 1, run time: 0.25
+[2023- 6-24] [16: 8:30] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |522646327           |              100.00%
+DATA PROCESSING     |522535206           |               99.98%
+SPMV                |512302733           |               98.02%
+SPMV Calculate      |25865766            |                4.95%
+DMA GET DATA        |90759               |                0.02%
+SPMV RMA            |29931               |                0.01%
+[2023- 6-24] [16: 8:30] [INFO] PCG: init residual = 1.089838e+06, final residual = 9.775624e-11, iterations: 102
+[2023- 6-24] [16: 8:30] [INFO] Step >> run time: 0.25, time cost: 0.2633s
+[2023- 6-24] [16: 8:30] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:30] [INFO] Step >> mesh : 1, run time: 0.26
+[2023- 6-24] [16: 8:30] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |344386614           |              100.00%
+DATA PROCESSING     |344271344           |               99.97%
+SPMV                |337465577           |               97.99%
+SPMV Calculate      |17033585            |                4.95%
+DMA GET DATA        |90247               |                0.03%
+SPMV RMA            |19711               |                0.01%
+[2023- 6-24] [16: 8:30] [INFO] PCG: init residual = 1.453117e+00, final residual = 8.047723e-11, iterations: 67
+[2023- 6-24] [16: 8:30] [INFO] Step >> run time: 0.26, time cost: 0.1772s
+[2023- 6-24] [16: 8:30] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:30] [INFO] Step >> mesh : 1, run time: 0.27
+[2023- 6-24] [16: 8:30] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |410511910           |              100.00%
+DATA PROCESSING     |410392854           |               99.97%
+SPMV                |402318729           |               98.00%
+SPMV Calculate      |20314094            |                4.95%
+DMA GET DATA        |98530               |                0.02%
+SPMV RMA            |23507               |                0.01%
+[2023- 6-24] [16: 8:31] [INFO] PCG: init residual = 1.634757e+02, final residual = 7.870906e-11, iterations: 80
+[2023- 6-24] [16: 8:31] [INFO] Step >> run time: 0.27, time cost: 0.2092s
+[2023- 6-24] [16: 8:31] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:31] [INFO] Step >> mesh : 1, run time: 0.28
+[2023- 6-24] [16: 8:31] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |527811406           |              100.00%
+DATA PROCESSING     |527700793           |               99.98%
+SPMV                |517359978           |               98.02%
+SPMV Calculate      |26118159            |                4.95%
+DMA GET DATA        |87580               |                0.02%
+SPMV RMA            |30222               |                0.01%
+[2023- 6-24] [16: 8:31] [INFO] PCG: init residual = 1.271477e+06, final residual = 9.411531e-11, iterations: 103
+[2023- 6-24] [16: 8:31] [INFO] Step >> run time: 0.28, time cost: 0.2659s
+[2023- 6-24] [16: 8:31] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:31] [INFO] Step >> mesh : 1, run time: 0.29
+[2023- 6-24] [16: 8:31] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |420729665           |              100.00%
+DATA PROCESSING     |420646828           |               99.98%
+SPMV                |412310607           |               98.00%
+SPMV Calculate      |20818812            |                4.95%
+DMA GET DATA        |57159               |                0.01%
+SPMV RMA            |24091               |                0.01%
+[2023- 6-24] [16: 8:31] [INFO] PCG: init residual = 3.632793e+02, final residual = 6.931169e-11, iterations: 82
+[2023- 6-24] [16: 8:31] [INFO] Step >> run time: 0.29, time cost: 0.2141s
+[2023- 6-24] [16: 8:31] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:31] [INFO] Step >> mesh : 1, run time: 0.30
+[2023- 6-24] [16: 8:31] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |176094520           |              100.00%
+DATA PROCESSING     |175984088           |               99.94%
+SPMV                |172414440           |               97.91%
+SPMV Calculate      |8706047             |                4.94%
+DMA GET DATA        |88159               |                0.05%
+SPMV RMA            |10074               |                0.01%
+[2023- 6-24] [16: 8:31] [INFO] PCG: init residual = 1.634757e-05, final residual = 8.809333e-11, iterations: 34
+[2023- 6-24] [16: 8:31] [INFO] Step >> run time: 0.30, time cost: 0.0959s
+[2023- 6-24] [16: 8:31] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:31] [INFO] Step >> mesh : 1, run time: 0.31
+[2023- 6-24] [16: 8:31] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |700989686           |              100.00%
+DATA PROCESSING     |700884463           |               99.98%
+SPMV                |687168254           |               98.03%
+SPMV Calculate      |34698048            |                4.95%
+DMA GET DATA        |83994               |                0.01%
+SPMV RMA            |40153               |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 3.632793e+11, final residual = 7.238741e-11, iterations: 137
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.31, time cost: 0.3495s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.32
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |334063646           |              100.00%
+DATA PROCESSING     |333938351           |               99.96%
+SPMV                |327364177           |               97.99%
+SPMV Calculate      |16528846            |                4.95%
+DMA GET DATA        |98734               |                0.03%
+SPMV RMA            |19127               |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 7.265586e-01, final residual = 7.991653e-11, iterations: 65
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.32, time cost: 0.1722s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.33
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |150593626           |              100.00%
+DATA PROCESSING     |150479040           |               99.92%
+SPMV                |147442343           |               97.91%
+SPMV Calculate      |7444296             |                4.94%
+DMA GET DATA        |88850               |                0.06%
+SPMV RMA            |8615                |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 3.632793e-06, final residual = 9.675654e-11, iterations: 29
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.33, time cost: 0.0836s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.34
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |176074476           |              100.00%
+DATA PROCESSING     |175952112           |               99.93%
+SPMV                |172421271           |               97.93%
+SPMV Calculate      |8706058             |                4.94%
+DMA GET DATA        |100798              |                0.06%
+SPMV RMA            |10076               |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 1.634757e-05, final residual = 8.809333e-11, iterations: 34
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.34, time cost: 0.0959s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.35
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |196529291           |              100.00%
+DATA PROCESSING     |196413082           |               99.94%
+SPMV                |192442200           |               97.92%
+SPMV Calculate      |9715464             |                4.94%
+DMA GET DATA        |94905               |                0.05%
+SPMV RMA            |11242               |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 5.449189e-05, final residual = 7.143651e-11, iterations: 38
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.35, time cost: 0.1057s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.36
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |532849005           |              100.00%
+DATA PROCESSING     |532734075           |               99.98%
+SPMV                |522279747           |               98.02%
+SPMV Calculate      |26370517            |                4.95%
+DMA GET DATA        |93567               |                0.02%
+SPMV RMA            |30515               |                0.01%
+[2023- 6-24] [16: 8:32] [INFO] PCG: init residual = 1.453117e+06, final residual = 9.064869e-11, iterations: 104
+[2023- 6-24] [16: 8:32] [INFO] Step >> run time: 0.36, time cost: 0.2682s
+[2023- 6-24] [16: 8:32] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:32] [INFO] Step >> mesh : 1, run time: 0.37
+[2023- 6-24] [16: 8:32] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |675545121           |              100.00%
+DATA PROCESSING     |675442287           |               99.98%
+SPMV                |662214740           |               98.03%
+SPMV Calculate      |33436281            |                4.95%
+DMA GET DATA        |80008               |                0.01%
+SPMV RMA            |38690               |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 5.449189e+10, final residual = 7.137481e-11, iterations: 132
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.37, time cost: 0.3372s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.38
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |130238979           |              100.00%
+DATA PROCESSING     |130112386           |               99.90%
+SPMV                |127453194           |               97.86%
+SPMV Calculate      |6434920             |                4.94%
+DMA GET DATA        |104096              |                0.08%
+SPMV RMA            |7446                |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 1.271477e-06, final residual = 8.161494e-11, iterations: 25
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.38, time cost: 0.0737s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.39
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |522798973           |              100.00%
+DATA PROCESSING     |522680362           |               99.98%
+SPMV                |512419519           |               98.01%
+SPMV Calculate      |25865804            |                4.95%
+DMA GET DATA        |94534               |                0.02%
+SPMV RMA            |29934               |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 1.089838e+06, final residual = 9.775624e-11, iterations: 102
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.39, time cost: 0.2634s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.40
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |7921109             |              100.00%
+DATA PROCESSING     |7828466             |               98.83%
+SPMV                |7510740             |               94.82%
+SPMV Calculate      |378521              |                4.78%
+DMA GET DATA        |87848               |                1.11%
+SPMV RMA            |438                 |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 1.816396e-10, final residual = 4.658268e-11, iterations: 1
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.40, time cost: 0.0146s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.41
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |262750086           |              100.00%
+DATA PROCESSING     |262651982           |               99.96%
+SPMV                |257410497           |               97.97%
+SPMV Calculate      |12996008            |                4.95%
+DMA GET DATA        |75717               |                0.03%
+SPMV RMA            |15039               |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 5.449189e-03, final residual = 8.285338e-11, iterations: 51
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.41, time cost: 0.1378s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.42
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |410607321           |              100.00%
+DATA PROCESSING     |410501525           |               99.97%
+SPMV                |402412508           |               98.00%
+SPMV Calculate      |20314099            |                4.95%
+DMA GET DATA        |82657               |                0.02%
+SPMV RMA            |23509               |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 1.816396e+02, final residual = 8.745451e-11, iterations: 80
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.42, time cost: 0.2092s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.43
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |23233028            |              100.00%
+DATA PROCESSING     |23121923            |               99.52%
+SPMV                |22502837            |               96.86%
+SPMV Calculate      |1135577             |                4.89%
+DMA GET DATA        |88605               |                0.38%
+SPMV RMA            |1314                |                0.01%
+[2023- 6-24] [16: 8:33] [INFO] PCG: init residual = 1.453117e-09, final residual = 6.907100e-11, iterations: 4
+[2023- 6-24] [16: 8:33] [INFO] Step >> run time: 0.43, time cost: 0.0221s
+[2023- 6-24] [16: 8:33] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:33] [INFO] Step >> mesh : 1, run time: 0.44
+[2023- 6-24] [16: 8:33] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |685734223           |              100.00%
+DATA PROCESSING     |685652917           |               99.99%
+SPMV                |672186869           |               98.02%
+SPMV Calculate      |33941009            |                4.95%
+DMA GET DATA        |58858               |                0.01%
+SPMV RMA            |39276               |                0.01%
+[2023- 6-24] [16: 8:34] [INFO] PCG: init residual = 1.271477e+11, final residual = 6.957401e-11, iterations: 134
+[2023- 6-24] [16: 8:34] [INFO] Step >> run time: 0.44, time cost: 0.3421s
+[2023- 6-24] [16: 8:34] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:34] [INFO] Step >> mesh : 1, run time: 0.45
+[2023- 6-24] [16: 8:34] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |675519223           |              100.00%
+DATA PROCESSING     |675402626           |               99.98%
+SPMV                |662212795           |               98.03%
+SPMV Calculate      |33436272            |                4.95%
+DMA GET DATA        |95574               |                0.01%
+SPMV RMA            |38695               |                0.01%
+[2023- 6-24] [16: 8:34] [INFO] PCG: init residual = 5.449189e+10, final residual = 7.137481e-11, iterations: 132
+[2023- 6-24] [16: 8:34] [INFO] Step >> run time: 0.45, time cost: 0.3371s
+[2023- 6-24] [16: 8:34] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:34] [INFO] Step >> mesh : 1, run time: 0.46
+[2023- 6-24] [16: 8:34] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |33584786            |              100.00%
+DATA PROCESSING     |33472511            |               99.67%
+SPMV                |32487617            |               96.73%
+SPMV Calculate      |1640269             |                4.88%
+DMA GET DATA        |91858               |                0.27%
+SPMV RMA            |1898                |                0.01%
+[2023- 6-24] [16: 8:34] [INFO] PCG: init residual = 3.632793e-09, final residual = 8.923330e-11, iterations: 6
+[2023- 6-24] [16: 8:34] [INFO] Step >> run time: 0.46, time cost: 0.0271s
+[2023- 6-24] [16: 8:34] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:34] [INFO] Step >> mesh : 1, run time: 0.47
+[2023- 6-24] [16: 8:34] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |721413811           |              100.00%
+DATA PROCESSING     |721308006           |               99.99%
+SPMV                |707189454           |               98.03%
+SPMV Calculate      |35707442            |                4.95%
+DMA GET DATA        |83002               |                0.01%
+SPMV RMA            |41320               |                0.01%
+[2023- 6-24] [16: 8:34] [INFO] PCG: init residual = 1.634757e+12, final residual = 7.624879e-11, iterations: 141
+[2023- 6-24] [16: 8:34] [INFO] Step >> run time: 0.47, time cost: 0.3593s
+[2023- 6-24] [16: 8:34] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:34] [INFO] Step >> mesh : 1, run time: 0.48
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |247455280           |              100.00%
+DATA PROCESSING     |247337846           |               99.95%
+SPMV                |242395292           |               97.96%
+SPMV Calculate      |12238938            |                4.95%
+DMA GET DATA        |94336               |                0.04%
+SPMV RMA            |14163               |                0.01%
+[2023- 6-24] [16: 8:35] [INFO] PCG: init residual = 1.816396e-03, final residual = 7.555154e-11, iterations: 48
+[2023- 6-24] [16: 8:35] [INFO] Step >> run time: 0.48, time cost: 0.1304s
+[2023- 6-24] [16: 8:35] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:35] [INFO] Step >> mesh : 1, run time: 0.49
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |736802719           |              100.00%
+DATA PROCESSING     |736704569           |               99.99%
+SPMV                |722333256           |               98.04%
+SPMV Calculate      |36464495            |                4.95%
+DMA GET DATA        |76432               |                0.01%
+SPMV RMA            |42197               |                0.01%
+[2023- 6-24] [16: 8:35] [INFO] PCG: init residual = 5.449189e+12, final residual = 7.500609e-11, iterations: 144
+[2023- 6-24] [16: 8:35] [INFO] Step >> run time: 0.49, time cost: 0.3668s
+[2023- 6-24] [16: 8:35] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:35] [INFO] Step >> mesh : 1, run time: 0.50
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |242375297           |              100.00%
+DATA PROCESSING     |242262474           |               99.95%
+SPMV                |237418121           |               97.95%
+SPMV Calculate      |11986594            |                4.95%
+DMA GET DATA        |91163               |                0.04%
+SPMV RMA            |13873               |                0.01%
+[2023- 6-24] [16: 8:35] [INFO] PCG: init residual = 1.271477e-03, final residual = 7.860836e-11, iterations: 47
+[2023- 6-24] [16: 8:35] [INFO] Step >> run time: 0.50, time cost: 0.1279s
+[2023- 6-24] [16: 8:35] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:35] [INFO] Step >> mesh : 1, run time: 0.51
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |614373962           |              100.00%
+DATA PROCESSING     |614266165           |               99.98%
+SPMV                |602233028           |               98.02%
+SPMV Calculate      |30408076            |                4.95%
+DMA GET DATA        |87279               |                0.01%
+SPMV RMA            |35187               |                0.01%
+[2023- 6-24] [16: 8:35] [INFO] PCG: init residual = 3.632793e+08, final residual = 7.326605e-11, iterations: 120
+[2023- 6-24] [16: 8:35] [INFO] Step >> run time: 0.51, time cost: 0.3076s
+[2023- 6-24] [16: 8:35] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:35] [INFO] Step >> mesh : 1, run time: 0.52
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |53786908            |              100.00%
+DATA PROCESSING     |53679845            |               99.80%
+SPMV                |52474513            |               97.56%
+SPMV Calculate      |2649677             |                4.93%
+DMA GET DATA        |81634               |                0.15%
+SPMV RMA            |3066                |                0.01%
+[2023- 6-24] [16: 8:35] [INFO] PCG: init residual = 9.081982e-09, final residual = 6.946899e-11, iterations: 10
+[2023- 6-24] [16: 8:35] [INFO] Step >> run time: 0.52, time cost: 0.0368s
+[2023- 6-24] [16: 8:35] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:35] [INFO] Step >> mesh : 1, run time: 0.53
+[2023- 6-24] [16: 8:35] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |436002748           |              100.00%
+DATA PROCESSING     |435882934           |               99.97%
+SPMV                |427309723           |               98.01%
+SPMV Calculate      |21575877            |                4.95%
+DMA GET DATA        |96152               |                0.02%
+SPMV RMA            |24966               |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 1.453117e+03, final residual = 6.896228e-11, iterations: 85
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.53, time cost: 0.2215s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.54
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |150584151           |              100.00%
+DATA PROCESSING     |150480277           |               99.93%
+SPMV                |147429015           |               97.90%
+SPMV Calculate      |7444302             |                4.94%
+DMA GET DATA        |83205               |                0.06%
+SPMV RMA            |8614                |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 3.632793e-06, final residual = 9.675654e-11, iterations: 29
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.54, time cost: 0.0836s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.55
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |125128107           |              100.00%
+DATA PROCESSING     |125025844           |               99.92%
+SPMV                |122425452           |               97.84%
+SPMV Calculate      |6182557             |                4.94%
+DMA GET DATA        |78894               |                0.06%
+SPMV RMA            |7155                |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 9.081982e-07, final residual = 8.832463e-11, iterations: 24
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.55, time cost: 0.0713s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.56
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |685731809           |              100.00%
+DATA PROCESSING     |685627771           |               99.98%
+SPMV                |672213207           |               98.03%
+SPMV Calculate      |33941005            |                4.95%
+DMA GET DATA        |82045               |                0.01%
+SPMV RMA            |39274               |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 1.271477e+11, final residual = 6.957401e-11, iterations: 134
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.56, time cost: 0.3421s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.57
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |278124498           |              100.00%
+DATA PROCESSING     |278011766           |               99.96%
+SPMV                |272485265           |               97.97%
+SPMV Calculate      |13753018            |                4.94%
+DMA GET DATA        |88822               |                0.03%
+SPMV RMA            |15914               |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 1.634757e-02, final residual = 9.074413e-11, iterations: 54
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.57, time cost: 0.1452s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.58
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |176111798           |              100.00%
+DATA PROCESSING     |175997519           |               99.94%
+SPMV                |172423672           |               97.91%
+SPMV Calculate      |8706047             |                4.94%
+DMA GET DATA        |90990               |                0.05%
+SPMV RMA            |10075               |                0.01%
+[2023- 6-24] [16: 8:36] [INFO] PCG: init residual = 1.634757e-05, final residual = 8.809333e-11, iterations: 34
+[2023- 6-24] [16: 8:36] [INFO] Step >> run time: 0.58, time cost: 0.0960s
+[2023- 6-24] [16: 8:36] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:36] [INFO] Step >> mesh : 1, run time: 0.59
+[2023- 6-24] [16: 8:36] [INFO] split time: 0.0096s
+unit_name           |clocks              |          percentage
+
+Main Loop           |211779684           |              100.00%
+DATA PROCESSING     |211727590           |               99.98%
+SPMV                |207384915           |               97.92%
+SPMV Calculate      |10472515            |                4.95%
+DMA GET DATA        |29833               |                0.01%
+SPMV RMA            |12120               |                0.01%
+[2023- 6-24] [16: 8:37] [INFO] PCG: init residual = 1.453117e-04, final residual = 6.884232e-11, iterations: 41
+[2023- 6-24] [16: 8:37] [INFO] Step >> run time: 0.59, time cost: 0.1133s
+[2023- 6-24] [16: 8:37] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:37] [INFO] Step >> mesh : 1, run time: 0.60
+[2023- 6-24] [16: 8:37] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |379967146           |              100.00%
+DATA PROCESSING     |379866948           |               99.97%
+SPMV                |372349820           |               98.00%
+SPMV Calculate      |18800027            |                4.95%
+DMA GET DATA        |76473               |                0.02%
+SPMV RMA            |21754               |                0.01%
+[2023- 6-24] [16: 8:37] [INFO] PCG: init residual = 1.634757e+01, final residual = 8.228232e-11, iterations: 74
+[2023- 6-24] [16: 8:37] [INFO] Step >> run time: 0.60, time cost: 0.1944s
+[2023- 6-24] [16: 8:37] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:37] [INFO] Step >> mesh : 1, run time: 0.61
+[2023- 6-24] [16: 8:37] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |619590517           |              100.00%
+DATA PROCESSING     |619475987           |               99.98%
+SPMV                |607359893           |               98.03%
+SPMV Calculate      |30660452            |                4.95%
+DMA GET DATA        |89624               |                0.01%
+SPMV RMA            |35480               |                0.01%
+[2023- 6-24] [16: 8:37] [INFO] PCG: init residual = 5.449189e+08, final residual = 7.677227e-11, iterations: 121
+[2023- 6-24] [16: 8:37] [INFO] Step >> run time: 0.61, time cost: 0.3101s
+[2023- 6-24] [16: 8:37] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:37] [INFO] Step >> mesh : 1, run time: 0.62
+[2023- 6-24] [16: 8:37] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |435974826           |              100.00%
+DATA PROCESSING     |435873340           |               99.98%
+SPMV                |427311193           |               98.01%
+SPMV Calculate      |21575878            |                4.95%
+DMA GET DATA        |76100               |                0.02%
+SPMV RMA            |24967               |                0.01%
+[2023- 6-24] [16: 8:37] [INFO] PCG: init residual = 1.634757e+03, final residual = 7.758257e-11, iterations: 85
+[2023- 6-24] [16: 8:37] [INFO] Step >> run time: 0.62, time cost: 0.2214s
+[2023- 6-24] [16: 8:37] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:37] [INFO] Step >> mesh : 1, run time: 0.63
+[2023- 6-24] [16: 8:37] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |221971233           |              100.00%
+DATA PROCESSING     |221860277           |               99.95%
+SPMV                |217408172           |               97.94%
+SPMV Calculate      |10977176            |                4.95%
+DMA GET DATA        |87095               |                0.04%
+SPMV RMA            |12702               |                0.01%
+[2023- 6-24] [16: 8:37] [INFO] PCG: init residual = 3.632793e-04, final residual = 8.696816e-11, iterations: 43
+[2023- 6-24] [16: 8:37] [INFO] Step >> run time: 0.63, time cost: 0.1181s
+[2023- 6-24] [16: 8:37] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:37] [INFO] Step >> mesh : 1, run time: 0.64
+[2023- 6-24] [16: 8:37] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |237256234           |              100.00%
+DATA PROCESSING     |237147205           |               99.95%
+SPMV                |232404761           |               97.96%
+SPMV Calculate      |11734242            |                4.95%
+DMA GET DATA        |85252               |                0.04%
+SPMV RMA            |13578               |                0.01%
+[2023- 6-24] [16: 8:38] [INFO] PCG: init residual = 1.089838e-03, final residual = 9.758505e-11, iterations: 46
+[2023- 6-24] [16: 8:38] [INFO] Step >> run time: 0.64, time cost: 0.1254s
+[2023- 6-24] [16: 8:38] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:38] [INFO] Step >> mesh : 1, run time: 0.65
+[2023- 6-24] [16: 8:38] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |18112392            |              100.00%
+DATA PROCESSING     |18014425            |               99.46%
+SPMV                |17496610            |               96.60%
+SPMV Calculate      |883231              |                4.88%
+DMA GET DATA        |75846               |                0.42%
+SPMV RMA            |1022                |                0.01%
+[2023- 6-24] [16: 8:38] [INFO] PCG: init residual = 1.271477e-09, final residual = 9.321432e-11, iterations: 3
+[2023- 6-24] [16: 8:38] [INFO] Step >> run time: 0.65, time cost: 0.0196s
+[2023- 6-24] [16: 8:38] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:38] [INFO] Step >> mesh : 1, run time: 0.66
+[2023- 6-24] [16: 8:38] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |736666760           |              100.00%
+DATA PROCESSING     |736563724           |               99.99%
+SPMV                |722172735           |               98.03%
+SPMV Calculate      |36464477            |                4.95%
+DMA GET DATA        |79959               |                0.01%
+SPMV RMA            |42197               |                0.01%
+[2023- 6-24] [16: 8:38] [INFO] PCG: init residual = 5.449189e+12, final residual = 7.500609e-11, iterations: 144
+[2023- 6-24] [16: 8:38] [INFO] Step >> run time: 0.66, time cost: 0.3667s
+[2023- 6-24] [16: 8:38] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:38] [INFO] Step >> mesh : 1, run time: 0.67
+[2023- 6-24] [16: 8:38] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |660223457           |              100.00%
+DATA PROCESSING     |660116156           |               99.98%
+SPMV                |647217864           |               98.03%
+SPMV Calculate      |32679250            |                4.95%
+DMA GET DATA        |84909               |                0.01%
+SPMV RMA            |37817               |                0.01%
+[2023- 6-24] [16: 8:38] [INFO] PCG: init residual = 1.453117e+10, final residual = 8.928946e-11, iterations: 129
+[2023- 6-24] [16: 8:38] [INFO] Step >> run time: 0.67, time cost: 0.3298s
+[2023- 6-24] [16: 8:38] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:38] [INFO] Step >> mesh : 1, run time: 0.68
+[2023- 6-24] [16: 8:38] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |629703735           |              100.00%
+DATA PROCESSING     |629586854           |               99.98%
+SPMV                |617243835           |               98.02%
+SPMV Calculate      |31165178            |                4.95%
+DMA GET DATA        |86843               |                0.01%
+SPMV RMA            |36062               |                0.01%
+[2023- 6-24] [16: 8:39] [INFO] PCG: init residual = 1.089838e+09, final residual = 7.762895e-11, iterations: 123
+[2023- 6-24] [16: 8:39] [INFO] Step >> run time: 0.68, time cost: 0.3150s
+[2023- 6-24] [16: 8:39] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:39] [INFO] Step >> mesh : 1, run time: 0.69
+[2023- 6-24] [16: 8:39] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |568598804           |              100.00%
+DATA PROCESSING     |568479120           |               99.98%
+SPMV                |557352641           |               98.02%
+SPMV Calculate      |28136980            |                4.95%
+DMA GET DATA        |96606               |                0.02%
+SPMV RMA            |32559               |                0.01%
+[2023- 6-24] [16: 8:39] [INFO] PCG: init residual = 9.081982e+06, final residual = 8.201777e-11, iterations: 111
+[2023- 6-24] [16: 8:39] [INFO] Step >> run time: 0.69, time cost: 0.2855s
+[2023- 6-24] [16: 8:39] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:39] [INFO] Step >> mesh : 1, run time: 0.70
+[2023- 6-24] [16: 8:39] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |660191309           |              100.00%
+DATA PROCESSING     |660070972           |               99.98%
+SPMV                |647170667           |               98.03%
+SPMV Calculate      |32679286            |                4.95%
+DMA GET DATA        |97391               |                0.01%
+SPMV RMA            |37817               |                0.01%
+[2023- 6-24] [16: 8:39] [INFO] PCG: init residual = 1.271477e+10, final residual = 7.812828e-11, iterations: 129
+[2023- 6-24] [16: 8:39] [INFO] Step >> run time: 0.70, time cost: 0.3298s
+[2023- 6-24] [16: 8:39] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:39] [INFO] Step >> mesh : 1, run time: 0.71
+[2023- 6-24] [16: 8:39] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |466643544           |              100.00%
+DATA PROCESSING     |466531962           |               99.98%
+SPMV                |457347977           |               98.01%
+SPMV Calculate      |23089983            |                4.95%
+DMA GET DATA        |84930               |                0.02%
+SPMV RMA            |26720               |                0.01%
+[2023- 6-24] [16: 8:40] [INFO] PCG: init residual = 1.816396e+04, final residual = 9.248834e-11, iterations: 91
+[2023- 6-24] [16: 8:40] [INFO] Step >> run time: 0.71, time cost: 0.2363s
+[2023- 6-24] [16: 8:40] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:40] [INFO] Step >> mesh : 1, run time: 0.72
+[2023- 6-24] [16: 8:40] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |206709741           |              100.00%
+DATA PROCESSING     |206597649           |               99.95%
+SPMV                |202455253           |               97.94%
+SPMV Calculate      |10220167            |                4.94%
+DMA GET DATA        |88067               |                0.04%
+SPMV RMA            |11827               |                0.01%
+[2023- 6-24] [16: 8:40] [INFO] PCG: init residual = 1.271477e-04, final residual = 9.096004e-11, iterations: 40
+[2023- 6-24] [16: 8:40] [INFO] Step >> run time: 0.72, time cost: 0.1107s
+[2023- 6-24] [16: 8:40] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:40] [INFO] Step >> mesh : 1, run time: 0.73
+[2023- 6-24] [16: 8:40] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |716261350           |              100.00%
+DATA PROCESSING     |716142093           |               99.98%
+SPMV                |702157740           |               98.03%
+SPMV Calculate      |35455098            |                4.95%
+DMA GET DATA        |93647               |                0.01%
+SPMV RMA            |41028               |                0.01%
+[2023- 6-24] [16: 8:40] [INFO] PCG: init residual = 1.089838e+12, final residual = 7.561614e-11, iterations: 140
+[2023- 6-24] [16: 8:40] [INFO] Step >> run time: 0.73, time cost: 0.3568s
+[2023- 6-24] [16: 8:40] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:40] [INFO] Step >> mesh : 1, run time: 0.74
+[2023- 6-24] [16: 8:40] [INFO] split time: 0.0095s
+unit_name           |clocks              |          percentage
+
+Main Loop           |583790255           |              100.00%
+DATA PROCESSING     |583681334           |               99.98%
+SPMV                |572228775           |               98.02%
+SPMV Calculate      |28894011            |                4.95%
+DMA GET DATA        |85119               |                0.01%
+SPMV RMA            |33434               |                0.01%
+[2023- 6-24] [16: 8:40] [INFO] PCG: init residual = 3.632793e+07, final residual = 6.804566e-11, iterations: 114
+[2023- 6-24] [16: 8:40] [INFO] Step >> run time: 0.74, time cost: 0.2929s
+[2023- 6-24] [16: 8:40] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:40] [INFO] Step >> mesh : 1, run time: 0.75
+[2023- 6-24] [16: 8:40] [INFO] split time: 0.0094s
+unit_name           |clocks              |          percentage
+
+Main Loop           |109862522           |              100.00%
+DATA PROCESSING     |109755438           |               99.90%
+SPMV                |107458888           |               97.81%
+SPMV Calculate      |5425514             |                4.94%
+DMA GET DATA        |85252               |                0.08%
+SPMV RMA            |6279                |                0.01%
+[2023- 6-24] [16: 8:40] [INFO] PCG: init residual = 5.449189e-07, final residual = 9.540946e-11, iterations: 21
+[2023- 6-24] [16: 8:40] [INFO] Step >> run time: 0.75, time cost: 0.0639s
+[2023- 6-24] [16: 8:40] [INFO] Check >> check result correct!
+
+[2023- 6-24] [16: 8:40] [INFO] Step >> mesh : 1, run time: 0.76
+[2023- 6-24] [16: 8:40] [INFO] split time: 0.0094s
+[5442654 ## 2023-06-24/16:08:41] receive request of kill job(Crtl`C).
+dispatching ...
+Job <5442654> is being terminated
+Job 5442654 has been finished, exit reason: CTRL~C.
