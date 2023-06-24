@@ -7,22 +7,15 @@
 #include "pcg_def.h"
 #include "vector_def.h"
 
-#define SIMD_WIDTH 8
-__thread_local double simd_arr[SIMD_WIDTH] __attribute__((aligned(64)));
 
 // --------------------------------------------------------------------------------
 
 inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start) {
-    int front = 8 - vec_start % 8;
-    int round = (vec_num - front) / 8;
-    int end = (vec_num - front) % 8;
+    int round = vec_num / 8;
+    int end = vec_num % 8;
     int off = 0;
     doublev8 p8, z8, beta8;
-    for (int i = 0; i < 8; ++i) simd_arr[i] = beta;
-    simd_load(beta8, simd_arr);
-    for (; off < front; ++off) {
-        p[off] = z[off] + beta * p[off];
-    }
+    beta8 = simd_vcpyfd(beta);
     for (int i = 0; i < round; ++i, off += 8) {
         simd_load(p8, p + off);
         simd_load(z8, z + off);
@@ -39,7 +32,7 @@ inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec
 inline void slave_Mul(double *z, double *M_1, double *r, int vec_num) {
     double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
     double *end_z = z + vec_num;
-    double *round_z = (double *)((uintptr_t)z & ~63);
+    double *round_z = (double *)((uintptr_t)end_z & ~63);
     for (; z < aligned_z; ++z, ++M_1, ++r) {
         *z = *M_1 * *r;
     }
@@ -104,8 +97,34 @@ inline void slave_MulSub(double *g, double *z, double *M, int vec_num) {
 
 inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    for (int i = 0; i < vec_num; ++i) {
-        local_sum += fabs(r[i]);
+    double *aligned_r = (double *)(((uintptr_t)r + 63) & ~63);
+    double *end_r = r + vec_num;
+    double *round_r = (double *)((uintptr_t)end_r & ~63);
+    for (; r < aligned_r; ++r) {
+        local_sum += fabs(*r);
+    }
+
+    union {
+        double f64;
+        int64_t i64;
+    } mask;
+    mask.i64 = 0x7fffffffffffffff;
+
+    doublev8 local_sum8 = simd_vcpyfd(0.);
+    union {
+        int512 i64v8;
+        doublev8 f64v8;
+    } r8, mask8;
+    mask8.f64v8 = simd_vcpyfd(mask.f64);
+    for (; r < round_r; r += 8) {
+        simd_load(r8.f64v8, r);
+        r8.i64v8 &= mask8.i64v8;
+        local_sum8 += r8.f64v8;
+    }
+
+    local_sum += simd_reduc_plusd(local_sum8);
+    for (; r < end_r; ++r) {
+        local_sum += fabs(*r);
     }
     CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
     return sum;
@@ -115,16 +134,15 @@ inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
 
 inline double slave_MulReduceZR(double *r, double *z, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    doublev8 r8, z8, tmp, sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.);
-    int round = vec_num / 8;
-    for (int i = 0, off = 0; i < round; ++i, off += 8) {
-        simd_loadu(r8, r + off);
-        simd_loadu(z8, z + off);
-        tmp = simd_vmad(r8, z8, sum8);
-        sum8 = tmp;
+    doublev8 r8, z8, tmp, sum8 = simd_vcpyfd(0.);
+    int i;
+    for (i = 0; i < vec_num - 8; i += 8) {
+        simd_loadu(r8, r + i);
+        simd_loadu(z8, z + i);
+        sum8 = simd_vmad(r8, z8, sum8);
     }
     local_sum = simd_reduc_plusd(sum8);
-    for (int i = round * 8; i < vec_num; ++i) {
+    for (; i < vec_num; ++i) {
         local_sum += r[i] * z[i];
     }
     CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
@@ -135,16 +153,16 @@ inline double slave_MulReduceZR(double *r, double *z, int vec_num, double *reduc
 
 inline double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    doublev8 p8, Ax8, tmp, sum8 = simd_set_doublev8(0., 0., 0., 0., 0., 0., 0., 0.);
+    doublev8 p8, Ax8, local_sum8 = simd_vcpyfd(0.);
     int round = vec_num / 8;
-    for (int i = 0, off = 0; i < round; ++i, off += 8) {
-        simd_loadu(p8, p + off);
-        simd_loadu(Ax8, Ax + off);
-        tmp = simd_vmad(p8, Ax8, sum8);
-        sum8 = tmp;
+    int i;
+    for (i = 0; i < vec_num - 8; i += 8) {
+        simd_loadu(p8, p + i);
+        simd_loadu(Ax8, Ax + i);
+        local_sum8 = simd_vmad(p8, Ax8, local_sum8);
     }
-    local_sum = simd_reduc_plusd(sum8);
-    for (int i = round * 8; i < vec_num; ++i) {
+    local_sum = simd_reduc_plusd(local_sum8);
+    for (; i < vec_num; ++i) {
         local_sum += p[i] * Ax[i];
     }
     CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
@@ -156,15 +174,13 @@ inline double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *red
 inline void slave_Updatexr(double *x, double *r, double *p, double *Ax, double alpha, int vec_num) {
     double *aligned_p = (double *)(((uintptr_t)p + 63) & ~63);
     double *end_p = p + vec_num;
-    double *round_p = (double *)((uintptr_t)p & ~63);
+    double *round_p = (double *)((uintptr_t)end_p & ~63);
     for (; p < aligned_p; ++x, ++r, ++p, ++Ax) {
         *x += alpha * *p;
         *r -= alpha * *Ax;
     }
     doublev8 x8, r8, p8, Ax8, tmp8, alpha8;
-    for (int i = 0; i < 8; ++i)
-        simd_arr[i] = alpha;
-    simd_load(alpha8, simd_arr);
+    alpha8 = simd_vcpyfd(alpha);
     for (; p < round_p; x += 8, r += 8, p += 8, Ax += 8) {
         simd_loadu(x8, x);
         simd_loadu(r8, r);
