@@ -3,8 +3,8 @@ CXX = sw9g++
 
 OBJECTS = main.o pcg.o spmv_master.o coo_matrix.o matrix_utils.o vector_slave.o spmv_slave.o slave.o
 
-CFLAGS   = -mslave -msimd -mieee -O3
-CXXFLAGS = -mhost -msimd -mieee -mftz -fpermissive -O3
+CFLAGS   = -mslave -msimd -mieee -Ofast
+CXXFLAGS = -mhost -msimd -mieee -mftz -fpermissive -Ofast
 
 INCLUDE = -I.
 INCLUDE += -I./spmv
