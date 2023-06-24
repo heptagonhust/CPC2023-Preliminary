@@ -6,6 +6,7 @@
 #include <simd.h>
 #include "pcg_def.h"
 #include "vector_def.h"
+#include "swperf.h"
 
 
 // --------------------------------------------------------------------------------
@@ -31,13 +32,13 @@ inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec
 // --------------------------------------------------------------------------------
 
 inline void slave_Mul(double *z, double *M_1, double *r, int vec_num) {
-    double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
     double *end_z = z + vec_num;
     double *round_z = (double *)((uintptr_t)end_z & ~63);
-    for (; z < aligned_z; ++z, ++M_1, ++r) {
-        *z = *M_1 * *r;
-    }
+    double *start_z = z, *start_r = r, *start_M1 = M_1;
     doublev8 z8, M_18, r8;
+    unsigned long icc = 0;
+    penv_slave0_cycle_count(&icc);
+    unsigned long start = icc;
     for (; z < round_z; z += 8, M_1 += 8, r += 8) {
         simd_load(M_18, M_1);
         simd_load(r8, r);
@@ -47,6 +48,17 @@ inline void slave_Mul(double *z, double *M_1, double *r, int vec_num) {
     for (; z < end_z; ++z, ++M_1, ++r) {
         *z = *M_1 * *r;
     }
+    penv_slave0_cycle_count(&icc);
+    if (CRTS_tid == 0)
+    printf("simd cycles: %ld\n", icc - start);
+    penv_slave0_cycle_count(&icc);
+    start = icc;
+    for (; start_z < end_z; ++start_z, ++start_M1, ++start_r) {
+        *start_z = *start_M1 * *start_r;
+    }
+    penv_slave0_cycle_count(&icc);
+    if (CRTS_tid == 0)
+    printf("normal cycles: %ld\n", icc - start);
 }
 
 // --------------------------------------------------------------------------------
