@@ -151,37 +151,16 @@ static void get_chunk_ranges(
     int col_num,
     int *col_shadow,
     int chunk_num) {
-    static int last_max_chunk_size;
-
-    if (last_max_chunk_size != 0) {
-        if (real_get_chunk_ranges(
-                ranges,
-                col_size,
-                col_num,
-                col_shadow,
-                chunk_num,
-                last_max_chunk_size)) {
-            int max_chunk = 0;
-            int min_chunk = 999999999;
-            for (int i = 0; i < chunk_num; ++i) {
-                min_chunk = std::min(min_chunk, ranges[i].size);
-                max_chunk = std::max(max_chunk, ranges[i].size);
-            }
-            if (8 * (max_chunk - min_chunk) < max_chunk) {
-                return;
-            }
-        }
-    }
-
-    last_max_chunk_size =
+    int max_chunk_size =
         splited_max_chunk_size(col_size, total_size, col_num, chunk_num);
+
     real_get_chunk_ranges(
         ranges,
         col_size,
         col_num,
         col_shadow,
         chunk_num,
-        last_max_chunk_size);
+        max_chunk_size);
 }
 
 struct Element {
@@ -221,6 +200,15 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     int *chunk_block_off = mem;
     int *block_size = chunk_block_off + chunk_num * chunk_num;
 
+    CooChunk **chunks = (CooChunk **)malloc(sizeof(CooChunk *) * chunk_num);
+    CooBlock **blocks =
+        (CooBlock **)malloc(sizeof(CooBlock *) * chunk_num * chunk_num);
+    CooChunkRange **ranges =
+        (CooChunkRange **)malloc(sizeof(CooChunkRange *) * chunk_num);
+    int *uPtr = ldu_matrix.uPtr;
+    int *lPtr = ldu_matrix.lPtr;
+    double *diag = ldu_matrix.diag;
+
     static int bscache[99999];
     static int last_matrix_size;
     static CooChunkRange last_split[99];
@@ -235,8 +223,8 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         int *chunk_size = (int *)malloc(sizeof(int) * chunk_num);
         memset(chunk_size, 0, sizeof(int) * chunk_num);
         for (int i = 0; i < ldu_matrix.faces; i += 512) {
-            chunk_size[bscache[ldu_matrix.uPtr[i]]] += 1;
-            chunk_size[bscache[ldu_matrix.lPtr[i]]] += 1;
+            chunk_size[bscache[uPtr[i]]] += 1;
+            chunk_size[bscache[lPtr[i]]] += 1;
         }
         int max_chunk = 0;
         int min_chunk = 999999999;
@@ -260,21 +248,23 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
             last_split,
             sizeof(CooChunkRange) * chunk_num);
     } else {
-        int *tmp_mem = (int *)malloc(sizeof(int) * (ldu_matrix.cells + row_num / SHADOW_BLOCK_SIZE + 1));
+        int *tmp_mem = (int *)malloc(
+            sizeof(int) * (ldu_matrix.cells + row_num / SHADOW_BLOCK_SIZE + 1));
         int *row_size = tmp_mem;
         int *row_shadow = tmp_mem + ldu_matrix.cells;
 
-        memset(row_shadow, 0, sizeof(int) * row_num / SHADOW_BLOCK_SIZE + 1);
+        memset(row_shadow, 0, sizeof(int) * (row_num / SHADOW_BLOCK_SIZE + 1));
+        memset(row_size, 0, sizeof(int) * row_num);
         int total_size = 0;
         for (int i = 0; i < ldu_matrix.cells; i++) {
             row_size[i] = 1;
             row_shadow[i / SHADOW_BLOCK_SIZE] += 1;
         }
         for (int i = 0; i < ldu_matrix.faces; i++) {
-            row_size[ldu_matrix.lPtr[i]] += 1;
-            row_size[ldu_matrix.uPtr[i]] += 1;
-            row_shadow[ldu_matrix.lPtr[i] / SHADOW_BLOCK_SIZE] += 1;
-            row_shadow[ldu_matrix.uPtr[i] / SHADOW_BLOCK_SIZE] += 1;
+            row_size[lPtr[i]] += 1;
+            row_size[uPtr[i]] += 1;
+            row_shadow[lPtr[i] / SHADOW_BLOCK_SIZE] += 1;
+            row_shadow[uPtr[i] / SHADOW_BLOCK_SIZE] += 1;
         }
 
         for (int i = 0; i < row_num / SHADOW_BLOCK_SIZE + 1; ++i) {
@@ -290,9 +280,9 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
             chunk_num);
 
         for (int i = 0; i < chunk_num; ++i) {
-            for (int j = result.chunk_ranges[i].row_begin;
-                 j < result.chunk_ranges[i].row_begin
-                     + result.chunk_ranges[i].row_num;
+            ranges[i] = &result.chunk_ranges[i];
+            for (int j = ranges[i]->row_begin;
+                 j < ranges[i]->row_begin + ranges[i]->row_num;
                  ++j) {
                 bscache[j] = i;
             }
@@ -313,44 +303,47 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
             sizeof(CooChunk) + sizeof(CooBlock) * (chunk_num + 1);
         result.chunks[i].chunk = (CooChunk *)malloc(result.chunks[i].mem_size);
 
-        auto &chunk = *result.chunks[i].chunk;
+        chunks[i] = result.chunks[i].chunk;
+        ranges[i] = &result.chunk_ranges[i];
 
-        int chunk_data_size = result.chunk_ranges[i].size;
+        int chunk_data_size = ranges[i]->size;
+        CooChunk *chunk = chunks[i];
 
-        chunk.row_begin = result.chunk_ranges[i].row_begin;
-        chunk.row_end = chunk.row_begin + result.chunk_ranges[i].row_num;
-        chunk.row_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
-        chunk.col_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
-        chunk.data = (double *)malloc(sizeof(double) * chunk_data_size);
-        chunk.block_num = chunk_num;
+        chunk->row_begin = result.chunk_ranges[i].row_begin;
+        chunk->row_end = chunk->row_begin + result.chunk_ranges[i].row_num;
+        chunk->row_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
+        chunk->col_idx = (uint16_t *)malloc(sizeof(uint16_t) * chunk_data_size);
+        chunk->data = (double *)malloc(sizeof(double) * chunk_data_size);
+        chunk->block_num = chunk_num;
 
-        for (int j = 0; j < chunk.block_num; ++j) {
-            auto &block = chunk.blocks[j];
-            block.row_num = chunk.row_end - chunk.row_begin;
-            block.col_begin = result.chunk_ranges[j].row_begin;
-            block.block_off = 0;
+        for (int j = 0; j < chunk_num; ++j) {
+            blocks[i * chunk_num + j] = &chunk->blocks[j];
+            CooBlock *block = blocks[i * chunk_num + j];
+            block->row_num = chunk->row_end - chunk->row_begin;
+            block->col_begin = result.chunk_ranges[j].row_begin;
+            block->block_off = 0;
         }
-        chunk.blocks[chunk.block_num].row_num = 0;
-        chunk.blocks[chunk.block_num].col_begin = row_num;
-        chunk.blocks[chunk.block_num].block_off = chunk_data_size;
+        chunk->blocks[chunk_num].row_num = 0;
+        chunk->blocks[chunk_num].col_begin = row_num;
+        chunk->blocks[chunk_num].block_off = chunk_data_size;
     }
 
     memset(block_size, 0, sizeof(int) * chunk_num * chunk_num);
 
     for (int i = 0; i < chunk_num; ++i) {
-        block_size[i * chunk_num + i] = result.chunk_ranges[i].row_num;
+        block_size[i * chunk_num + i] = ranges[i]->row_num;
     }
 
     for (int i = 0; i < ldu_matrix.faces; ++i) {
-        int chunk_idx = bscache[ldu_matrix.uPtr[i]];
-        int block_idx = bscache[ldu_matrix.lPtr[i]];
-        block_size[chunk_idx * result.chunk_num + block_idx] += 1;
-        block_size[block_idx * result.chunk_num + chunk_idx] += 1;
+        int chunk_idx = bscache[uPtr[i]];
+        int block_idx = bscache[lPtr[i]];
+        block_size[chunk_idx * chunk_num + block_idx] += 1;
+        block_size[block_idx * chunk_num + chunk_idx] += 1;
     }
 
     memset(chunk_block_off, 0, sizeof(int) * chunk_num * chunk_num);
-    for (int chunk_idx = 0; chunk_idx < result.chunk_num; ++chunk_idx) {
-        auto &chunk = *result.chunks[chunk_idx].chunk;
+    for (int chunk_idx = 0; chunk_idx < chunk_num; ++chunk_idx) {
+        auto &chunk = *chunks[chunk_idx];
         int chunk_data_size = 0;
         for (int block_idx = 0; block_idx < result.chunk_num; ++block_idx) {
             auto &block = chunk.blocks[block_idx];
@@ -362,13 +355,13 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     }
 
     for (int i = 0; i < chunk_num; ++i) {
-        auto &idx = chunk_block_off[i * result.chunk_num + i];
+        auto &idx = chunk_block_off[i * chunk_num + i];
         auto &chunk = *result.chunks[i].chunk;
         memcpy(
-            chunk.data + idx,
-            ldu_matrix.diag + result.chunk_ranges[i].row_begin,
-            sizeof(double) * result.chunk_ranges[i].row_num);
-        for (int j = 0; j < result.chunk_ranges[i].row_num; ++j) {
+            chunks[i]->data + idx,
+            diag + ranges[i]->row_begin,
+            sizeof(double) * ranges[i]->row_num);
+        for (int j = 0; j < ranges[i]->row_num; ++j) {
             chunk.row_idx[idx] = j;
             chunk.col_idx[idx] = j;
             idx += 1;
@@ -376,27 +369,28 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     }
 
     for (int i = 0; i < ldu_matrix.faces; ++i) {
-        int idx1 = bscache[ldu_matrix.uPtr[i]];
-        int idx1_offset =
-            ldu_matrix.uPtr[i] - result.chunk_ranges[idx1].row_begin;
-        int idx2 = bscache[ldu_matrix.lPtr[i]];
-        int idx2_offset =
-            ldu_matrix.lPtr[i] - result.chunk_ranges[idx2].row_begin;
-        int idx_21 = chunk_block_off[idx2 * result.chunk_num + idx1];
-        chunk_block_off[idx2 * result.chunk_num + idx1] += 1;
-        int idx_12 = chunk_block_off[idx1 * result.chunk_num + idx2];
-        chunk_block_off[idx1 * result.chunk_num + idx2] += 1;
+        int idx1 = bscache[uPtr[i]];
+        int idx1_offset = uPtr[i] - ranges[idx1]->row_begin;
+        int idx2 = bscache[lPtr[i]];
+        int idx2_offset = lPtr[i] - ranges[idx2]->row_begin;
+        int idx_21 = chunk_block_off[idx2 * chunk_num + idx1];
+        chunk_block_off[idx2 * chunk_num + idx1] += 1;
+        int idx_12 = chunk_block_off[idx1 * chunk_num + idx2];
+        chunk_block_off[idx1 * chunk_num + idx2] += 1;
 
-        result.chunks[idx1].chunk->row_idx[idx_12] = idx1_offset;
-        result.chunks[idx1].chunk->col_idx[idx_12] = idx2_offset;
-        result.chunks[idx1].chunk->data[idx_12] = ldu_matrix.lower[i];
+        chunks[idx1]->row_idx[idx_12] = idx1_offset;
+        chunks[idx1]->col_idx[idx_12] = idx2_offset;
+        chunks[idx1]->data[idx_12] = ldu_matrix.lower[i];
 
-        result.chunks[idx2].chunk->row_idx[idx_21] = idx2_offset;
-        result.chunks[idx2].chunk->col_idx[idx_21] = idx1_offset;
-        result.chunks[idx2].chunk->data[idx_21] = ldu_matrix.upper[i];
+        chunks[idx2]->row_idx[idx_21] = idx2_offset;
+        chunks[idx2]->col_idx[idx_21] = idx1_offset;
+        chunks[idx2]->data[idx_21] = ldu_matrix.upper[i];
     }
 
     free(mem);
+    free(chunks);
+    free(blocks);
+    free(ranges);
 
     return result;
 }
