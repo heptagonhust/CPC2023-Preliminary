@@ -1,6 +1,7 @@
 #include <slave.h>
 #include <crts.h>
 #include <math.h>
+#include <simd.h>
 #include "vector_def.h"
 #include "spmv_def.h"
 #include "spmv_slave.h"
@@ -53,18 +54,38 @@ inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, doub
     }
 }
 
+inline static void slave_init_M_1(double *M, double *M_1, int vec_num) {
+    int i;
+    doublev8 M8, M_18;
+    for (i = 0; i < vec_num - 8; i += 8) {
+        simd_load(M8, M + i);
+        M_18 = simd_vfrecpd(M8);
+        simd_store(M_18, M_1 + i);
+    }
+
+    for (; i < vec_num; ++i) {
+        M_1[i] = 1.0 / M[i];
+    }
+}
+
 void slave_MainLoop(MainLoopPara *para_mem) {
     int id = CRTS_tid;
-    //* get meta data
+    
+    // get meta data
     MainLoopPara para;
     DMA_GET(&para, para_mem, sizeof(MainLoopPara), &get_rply, get_cnt);
     int vec_begin = para.ntask[id].col_start;
     int vec_num = para.ntask[id].col_num;
     SpmvPara spmv_para;
     DMA_GET(&spmv_para, para.spmv_para, sizeof(SpmvPara), &get_rply, get_cnt);
+    double *M = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
+    double *M_1 = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
+    DMA_IGET(M, para.M + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
+
     CooChunk *chunk = (CooChunk *)CRTS_pldm_malloc(spmv_para.chunks[id].mem_size);
     DMA_IGET(chunk, spmv_para.chunks[id].chunk, spmv_para.chunks[id].mem_size, &get_rply, get_cnt);
     DMA_WAIT(&get_rply, get_cnt);
+
     DoubleBuffering buffer;
     slave_double_buffering_new(&buffer, spmv_para.max_block_row_num);
 
@@ -73,19 +94,16 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     double *g = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *x = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *Ax = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
-    double *M = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     double *z = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     z_list[id] = z;
     double *p = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     p_list[id] = p;
-    double *M_1 = (double *)CRTS_pldm_malloc(vec_num * sizeof(double));
     DMA_IGET(r, para.r + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
     DMA_IGET(x, para.x + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
-    DMA_IGET(M, para.M + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
     DMA_IGET(p, para.p + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
-    DMA_IGET(M_1, para.M_1 + vec_begin, vec_num * sizeof(double), &get_rply, get_cnt);
 
     get_non_0_blocks(chunk);
+    slave_init_M_1(M, M_1, vec_num);
 
     DMA_WAIT(&get_rply, get_cnt);
 
