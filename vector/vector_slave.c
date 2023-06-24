@@ -2,303 +2,197 @@
 
 #include <crts.h>
 #include <slave.h>
-
+#include <math.h>
+#include <simd.h>
 #include "pcg_def.h"
 #include "vector_def.h"
 
-#define reduceBufferSize 64
-__thread_local crts_rply_t DMARply = 0;
-__thread_local unsigned int DMARplyCount = 0;
-__thread_local double reducebuf[reduceBufferSize] __attribute__((aligned(64)));
-// #define dataBufferSize 1408
-// __thread_local double p[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double z[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double M[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double r[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double g[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double Ax[dataBufferSize] __attribute__((aligned(64)));
-// __thread_local double x[dataBufferSize] __attribute__((aligned(64)));
 
 // --------------------------------------------------------------------------------
 
-void slave_MulAdd(MulAddPara *para) {
-    MulAddPara slavePara;
-    //接收结构体数据
-    CRTS_dma_iget(&slavePara, para, sizeof(MulAddPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    double beta = slavePara.beta_k;
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    //接收数组数据
-    CRTS_dma_iget(p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 2;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    //计算
-    int i = 0;
-    for (; i < len; i++) {
-        p[i] = z[i] + beta * p[i];
+inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start) {
+    int round = vec_num / 8;
+    int end = vec_num % 8;
+    int off = 0;
+    doublev8 p8, z8, beta8;
+    beta8 = simd_vcpyfd(beta);
+    for (int i = 0; i < round; ++i, off += 8) {
+        simd_load(p8, p + off);
+        simd_load(z8, z + off);
+        p8 = simd_vmad(beta8, p8, z8);
+        simd_store(p8, p + off);
     }
-    //传回计算结果
-    CRTS_dma_iput(slavePara.p_k + addr, p, len * sizeof(double), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    CRTS_pldm_free(p, len * sizeof(double));
-    CRTS_pldm_free(z, len * sizeof(double));
+    for (; off < vec_num; ++off) {
+        p[off] = z[off] + beta * p[off];
+    }
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_Mul(MulPara *para) {
-    MulPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(MulPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-
-    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 2;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    for (int i = 0; i < len; ++i) {
-        z[i] = M[i] * r[i];
+inline void slave_Mul(double *z, double *M_1, double *r, int vec_num) {
+    double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
+    double *end_z = z + vec_num;
+    double *round_z = (double *)((uintptr_t)end_z & ~63);
+    for (; z < aligned_z; ++z, ++M_1, ++r) {
+        *z = *M_1 * *r;
     }
-
-    CRTS_dma_iput(slavePara.z_k1 + addr, z, len * sizeof(double), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    CRTS_pldm_free(M, len * sizeof(double));
-    CRTS_pldm_free(r, len * sizeof(double));
-    CRTS_pldm_free(z, len * sizeof(double));
+    doublev8 z8, M_18, r8;
+    for (; z < round_z; z += 8, M_1 += 8, r += 8) {
+        simd_loadu(M_18, M_1);
+        simd_loadu(r8, r);
+        z8 = simd_vmuld(M_18, r8);
+        simd_store(z8, z);
+    }
+    for (; z < end_z; ++z, ++M_1, ++r) {
+        *z = *M_1 * *r;
+    }
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_SubMul(SubMulPara *para) {
-    SubMulPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(SubMulPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *g = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-
-    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(g, slavePara.g + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 3;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    for (int i = 0; i < len; ++i) {
-        z[i] = (r[i] - g[i]) * M[i];
+inline void slave_SubMul(double *z, double *r, double *g, double *M_1, int vec_num) {
+    double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
+    double *end_z = z + vec_num;
+    double *round_z = (double *)((uintptr_t)end_z & ~63);
+    for (; z < aligned_z; ++z, ++r, ++g, ++M_1) {
+        *z = (*r - *g) * *M_1;
     }
-
-    CRTS_dma_iput(slavePara.z_k1 + addr, z, len * sizeof(double), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    CRTS_pldm_free(r, len * sizeof(double));
-    CRTS_pldm_free(g, len * sizeof(double));
-    CRTS_pldm_free(M, len * sizeof(double));
-    CRTS_pldm_free(z, len * sizeof(double));
+    doublev8 z8, r8, g8, M_18, tmp8;
+    for (; z < round_z; z += 8, r += 8, g += 8, M_1 += 8) {
+        simd_loadu(r8, r);
+        simd_loadu(g8, g);
+        simd_loadu(M_18, M_1);
+        tmp8 = simd_vsubd(r8, g8);
+        z8 = simd_vmuld(M_18, tmp8);
+        simd_store(z8, z);
+    }
+    for (; z < end_z; ++z, ++r, ++g, ++M_1) {
+        *z = (*r - *g) * *M_1;
+    }
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_MulSub(MulSubPara *para) {
-    MulSubPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(MulSubPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-    double *g = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *M = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-
-    CRTS_dma_iget(g, slavePara.g + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(M, slavePara.m + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 3;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    for (int i = 0; i < len; ++i) {
-        g[i] = g[i] - z[i] * M[i];
+inline void slave_MulSub(double *g, double *z, double *M, int vec_num) {
+    double *aligned_z = (double *)(((uintptr_t)z + 63) & ~63);
+    double *end_z = z + vec_num;
+    double *round_z = (double *)((uintptr_t)end_z & ~63);
+    for (; z < aligned_z; ++g, ++z, ++M) {
+        *g -= *z * *M;
     }
-
-    CRTS_dma_iput(slavePara.g + addr, g, len * sizeof(double), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    CRTS_pldm_free(g, len * sizeof(double));
-    CRTS_pldm_free(M, len * sizeof(double));
-    CRTS_pldm_free(z, len * sizeof(double));
+    doublev8 g8, z8, M8, tmp8;
+    for (; z < round_z; g += 8, z += 8, M += 8) {
+        simd_loadu(g8, g);
+        simd_load(z8, z);
+        simd_loadu(M8, M);
+        tmp8 = simd_vnmad(z8, M8, g8);
+        simd_storeu(tmp8, g);
+    }
+    for (; z < end_z; ++g, ++z, ++M) {
+        *g -= *z * *M;
+    }
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_Reduce(ReducePara *para) {
-    ReducePara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(ReducePara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-
-    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
+inline double slave_Reduce(double *r, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    for (int i = 0; i < len; ++i) {
-        union {
-            double f64;
-            int64_t i64;
-        } u;
-        u.f64 = r[i];
-        u.i64 &= 0x7fffffffffffffff;
-        local_sum += u.f64;
+    double *aligned_r = (double *)(((uintptr_t)r + 63) & ~63);
+    double *end_r = r + vec_num;
+    double *round_r = (double *)((uintptr_t)end_r & ~63);
+    for (; r < aligned_r; ++r) {
+        local_sum += fabs(*r);
     }
-    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
-    if (CRTS_tid == 0) {
-        int result = 1;
-        CRTS_dma_put(slavePara.result, &result, sizeof(int));
-        CRTS_dma_put(slavePara.residual, &sum, sizeof(double));
+
+    union {
+        double f64;
+        int64_t i64;
+    } mask;
+    mask.i64 = 0x7fffffffffffffff;
+
+    doublev8 local_sum8 = simd_vcpyfd(0.);
+    union {
+        int512 i64v8;
+        doublev8 f64v8;
+    } r8, mask8;
+    mask8.f64v8 = simd_vcpyfd(mask.f64);
+    for (; r < round_r; r += 8) {
+        simd_load(r8.f64v8, r);
+        r8.i64v8 &= mask8.i64v8;
+        local_sum8 += r8.f64v8;
     }
-    CRTS_pldm_free(r, len * sizeof(double));
+
+    local_sum += simd_reduc_plusd(local_sum8);
+    for (; r < end_r; ++r) {
+        local_sum += fabs(*r);
+    }
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
+    return sum;
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_MulReduceZR(MulReduceZRPara *para) {
-    MulReduceZRPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(MulReduceZRPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-
-    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *z = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(r, slavePara.r_k1 + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(z, slavePara.z_k1 + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 2;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
+inline double slave_MulReduceZR(double *r, double *z, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    for (int i = 0; i < len; ++i) {
+    doublev8 r8, z8, tmp, sum8 = simd_vcpyfd(0.);
+    int i;
+    for (i = 0; i < vec_num - 8; i += 8) {
+        simd_loadu(r8, r + i);
+        simd_loadu(z8, z + i);
+        sum8 = simd_vmad(r8, z8, sum8);
+    }
+    local_sum = simd_reduc_plusd(sum8);
+    for (; i < vec_num; ++i) {
         local_sum += r[i] * z[i];
     }
-
-    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
-    if (CRTS_tid == 0)
-        CRTS_dma_put(slavePara.result, &sum, sizeof(double));
-    CRTS_pldm_free(r, len * sizeof(double));
-    CRTS_pldm_free(z, len * sizeof(double));
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
+    return sum;
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_MulReducepAx(MulReducepAxPara *para) {
-    MulReducepAxPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(MulReducepAxPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-
-    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(p, slavePara.p_k + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 2;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
+inline double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *reducebuf) {
     double local_sum = 0, sum = 0;
-    for (int i = 0; i < len; ++i) {
+    doublev8 p8, Ax8, local_sum8 = simd_vcpyfd(0.);
+    int round = vec_num / 8;
+    int i;
+    for (i = 0; i < vec_num - 8; i += 8) {
+        simd_loadu(p8, p + i);
+        simd_loadu(Ax8, Ax + i);
+        local_sum8 = simd_vmad(p8, Ax8, local_sum8);
+    }
+    local_sum = simd_reduc_plusd(local_sum8);
+    for (; i < vec_num; ++i) {
         local_sum += p[i] * Ax[i];
     }
-
-    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, &reducebuf, 64);
-    if (CRTS_tid == 0)
-        CRTS_dma_put(slavePara.result, &sum, sizeof(double));
-    CRTS_pldm_free(p, len * sizeof(double));
-    CRTS_pldm_free(Ax, len * sizeof(double));
+    CRTS_scoll_redurt(&local_sum, &sum, 1, CRTS_double, OP_add, reducebuf, 64);
+    return sum;
 }
 
 // --------------------------------------------------------------------------------
 
-void slave_Updatexr(UpdatexrPara *para) {
-    UpdatexrPara slavePara;
-    CRTS_dma_iget(&slavePara, para, sizeof(UpdatexrPara), &DMARply);
-    DMARplyCount++;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-    int cells = slavePara.cells;
-    double alpha = slavePara.alpha;
-    int id = CRTS_tid;
-
-    int addr = slavePara.task[id].col_start;
-    int len = slavePara.task[id].col_num;
-
-    double *x = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *r = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *p = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    double *Ax = (double *)CRTS_pldm_malloc(len * sizeof(double));
-    CRTS_dma_iget(x, slavePara.x + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(r, slavePara.r + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(p, slavePara.p + addr, len * sizeof(double), &DMARply);
-    CRTS_dma_iget(Ax, slavePara.Ax + addr, len * sizeof(double), &DMARply);
-    DMARplyCount += 4;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    for (int i = 0; i < len; ++i) {
-        x[i] = x[i] + alpha * p[i];
-        r[i] = r[i] - alpha * Ax[i];
+inline void slave_Updatexr(double *x, double *r, double *p, double *Ax, double alpha, int vec_num) {
+    double *aligned_p = (double *)(((uintptr_t)p + 63) & ~63);
+    double *end_p = p + vec_num;
+    double *round_p = (double *)((uintptr_t)end_p & ~63);
+    for (; p < aligned_p; ++x, ++r, ++p, ++Ax) {
+        *x += alpha * *p;
+        *r -= alpha * *Ax;
     }
-
-    CRTS_dma_iput(slavePara.x + addr, x, len * sizeof(double), &DMARply);
-    CRTS_dma_iput(slavePara.r + addr, r, len * sizeof(double), &DMARply);
-    DMARplyCount += 2;
-    CRTS_dma_wait_value(&DMARply, DMARplyCount);
-
-    CRTS_pldm_free(x, len * sizeof(double));
-    CRTS_pldm_free(r, len * sizeof(double));
-    CRTS_pldm_free(p, len * sizeof(double));
-    CRTS_pldm_free(Ax, len * sizeof(double));
+    doublev8 x8, r8, p8, Ax8, tmp8, alpha8;
+    alpha8 = simd_vcpyfd(alpha);
+    for (; p < round_p; x += 8, r += 8, p += 8, Ax += 8) {
+        simd_loadu(x8, x);
+        simd_loadu(r8, r);
+        tmp8 = simd_vmad(alpha8, p8, x8);
+        simd_storeu(tmp8, x);
+        simd_load(p8, p);
+        simd_loadu(Ax8, Ax);
+        tmp8 = simd_vnmad(alpha8, Ax8, r8);
+        simd_storeu(tmp8, r);
+    }
+    for (; p < end_p; ++x, ++r, ++p, ++Ax) {
+        *x += alpha * *p;
+        *r -= alpha * *Ax;
+    }
 }

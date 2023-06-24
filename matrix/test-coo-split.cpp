@@ -31,6 +31,7 @@ int main(void) {
         auto plain_splited = plain_matrix_from_splited_coo(splited);
 
         free_csr_matrix(csr_matrix);
+        free_splited_coo(splited);
 
 #ifdef SHOW_FIRST_100_ELEMENTS
         for (int i = 0; i < 100; ++i) {

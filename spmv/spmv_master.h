@@ -28,7 +28,6 @@ void coo_spmv(SpmvPara *para, double *result);
 void spmv_para_from_splited_coo_matrix(
     const SplitedCooMatrix *mat,
     SpmvPara *para,
-    double *vec,
     int row_num,
     int col_num);
 

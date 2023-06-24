@@ -78,27 +78,27 @@ typedef struct {
 extern "C" {
 #endif
     //! vec1 = vec0 + scalar * vec1
-    void slave_MulAdd(MulAddPara *para);
+    void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec_start);
 
     //! result[i] = vec0[i] * vec1[i]
-    void slave_Mul(MulPara *para);
+    void slave_Mul(double *z, double *M_1, double *r, int vec_num);
 
     //! result[i] = (vec0[i] - vec1[i]) * vec2[i]
-    void slave_SubMul(SubMulPara *para);
+    void slave_SubMul(double *z, double *r, double *g, double *M_1, int vec_num);
 
     //! vec0[i] = vec0[i] - vec1[i] * vec2[i]
-    void slave_MulSub(MulSubPara *para);
+    void slave_MulSub(double *g, double *z, double *M, int vec_num);
 
     //! result += abs(vec[i])
-    void slave_Reduce(ReducePara *para);
+    double slave_Reduce(double *r, int vec_num, double *reducebuf);
 
     //! result += vec0[i] * vec1[i]
-    void slave_MulReduceZR(MulReduceZRPara *para);
+    double slave_MulReduceZR(double *r, double *z, int vec_num, double *reducebuf);
 
     //! result += vec2[i] * vec3[i]
-    void slave_MulReducepAx(MulReducepAxPara *para);
+    double slave_MulReducepAx(double *p, double *Ax, int vec_num, double *reducebuf);
 
-    void slave_Updatexr(UpdatexrPara *para);
+    void slave_Updatexr(double *x, double *r, double *p, double *Ax, double alpha, int vec_num);
 
 #ifdef __cplusplus
 }
