@@ -49,7 +49,6 @@ inline void slave_precondition_coo(CooChunk *chunk, double *M, double *M_1, doub
         CRTS_ssync_array();
         slave_coo_spmv(chunk, z, z_list, g, buff, non_0_block_num, &non_0_block_idx[0]);
         slave_MulSub(g, z, M, vec_num);
-        CRTS_ssync_array();
         slave_SubMul(z, r, g, M_1, vec_num);
     }
 }
