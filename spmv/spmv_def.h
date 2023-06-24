@@ -85,6 +85,8 @@ typedef struct {
 
 #endif
 
+
+
 #define SLAVE_CORE_NUM 64
 
 typedef struct {
@@ -120,8 +122,7 @@ typedef struct {
     int chunk_num;  // 64
     int sp_row;  // 稀疏矩阵的行数
     int sp_col;  // 稀疏矩阵的列数，也是右乘向量的行数
-    double *result;
-    double *vec;  // 右乘的向量
+    int max_block_row_num;  // 所有 block 的最大行数
     SizedCooChunk chunks[SLAVE_CORE_NUM];
 } SpmvPara;
 

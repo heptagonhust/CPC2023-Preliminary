@@ -2,6 +2,9 @@
 #define _SLAVE_DEF_H_
 
 #include <crts.h>
+#include "vector_def.h"
+
+#define SLAVE_CORE_NUM 64
 
 /// DMA 等待完成
 #define DMA_WAIT(rply, cnt) CRTS_dma_wait_value(rply, cnt)
@@ -31,5 +34,23 @@
     CRTS_dma_iput(dst, src, len, rply); \
     cnt++; \
     DMA_WAIT(rply, cnt)
+
+
+typedef struct {
+    int maxIter;
+    double normfactor;
+    double tolerance;
+    double *p;
+    double *r;
+    double *x;
+    double *M;
+    double *M_1;
+    SpmvPara *spmv_para;
+    Slave_task ntask[SLAVE_CORE_NUM];
+    double *init_residual;
+    double *final_residual;
+    int *iter;
+} MainLoopPara;
+
 
 #endif

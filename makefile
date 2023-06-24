@@ -1,7 +1,7 @@
 CC  = sw9gcc
 CXX = sw9g++
 
-OBJECTS = main.o pcg.o vector_master.o spmv_master.o coo_matrix.o matrix_utils.o vector_slave.o spmv_slave.o
+OBJECTS = main.o pcg.o spmv_master.o coo_matrix.o matrix_utils.o vector_slave.o spmv_slave.o slave.o
 
 CFLAGS   = -mslave -msimd -mieee -O3
 CXXFLAGS = -mhost -msimd -mieee -mftz -fpermissive -O3
@@ -27,19 +27,19 @@ pcg.o: pcg.cpp matrix/coo_matrix.h
 spmv_master.o: spmv/spmv_master.cpp spmv/spmv_slave.h
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
-vector_master.o: vector/vector_master.cpp vector/vector_def.h pcg_def.h
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
-
 coo_matrix.o: matrix/coo_matrix.cpp spmv/spmv_def.h pcg.h
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
 matrix_utils.o: matrix/matrix_utils.cpp pcg_def.h
 	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -o $@
 
-spmv_slave.o: spmv/spmv_slave.c spmv/spmv_def.h slave_def.h
+spmv_slave.o: spmv/spmv_slave.c spmv/spmv_slave.h spmv/spmv_def.h slave_def.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 vector_slave.o: vector/vector_slave.c vector/vector_def.h
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+
+slave.o: slave.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 clean:
