@@ -16,6 +16,7 @@ inline void slave_MulAdd(double *p, double *z, double beta, int vec_num, int vec
     int off = 0;
     doublev8 p8, z8, beta8;
     beta8 = simd_vcpyfd(beta);
+
     for (int i = 0; i < round; ++i, off += 8) {
         simd_load(p8, p + off);
         simd_load(z8, z + off);

@@ -10,6 +10,7 @@ INCLUDE = -I.
 INCLUDE += -I./spmv
 INCLUDE += -I./vector
 INCLUDE += -I./matrix
+INCLUDE += -I./perf
 
 EXE = pcg_solve
 
