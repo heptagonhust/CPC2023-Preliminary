@@ -1,5 +1,7 @@
 #include "coo_matrix.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -11,34 +13,7 @@
 #include "pcg.h"
 #include "spmv_def.h"
 
-/**
- * coo_matrix_chunk_num() - 计算给定矩阵按照每个 chunk 大小不超过 max_chunk_size 的限制条件切分时，得到的 chunk 数量。
- *
- * @mtx: 待切分矩阵。
- * @max_chunk_size: chunk 大小的最大值限制。
- *
- * Return: chunk 数量。
- *         若不存在一种切分方式满足每个 chunk 大小不超过 max_chunk_size 的限制，则返回 0x3f3f3f3f。
- */
-static int splited_chunk_num(int *col_size, int col_num, int max_chunk_size) {
-    for (int i = 0; i < col_num; ++i) {
-        if (col_size[i] > max_chunk_size) {
-            return 0x3f3f3f3f;
-        }
-    }
-
-    int chunk_cnt = 0;
-    for (int i = 0, current_chunk_size = 0; i < col_num; ++i) {
-        current_chunk_size += col_size[i];
-        if (current_chunk_size > max_chunk_size) {
-            current_chunk_size = col_size[i];
-            chunk_cnt += 1;
-        }
-    }
-
-    chunk_cnt += 1;
-    return chunk_cnt;
-}
+#define SHADOW_BLOCK_SIZE 256
 
 /**
  * coo_matrix_chunk_size() - 计算将给定矩阵尽可能均匀切分为若干个 chunk 时，切分后最大的 chunk 的大小。
@@ -56,7 +31,21 @@ static int splited_max_chunk_size(
     int l = 0, r = total_size;
     while (l < r) {
         int chunk_size = l + (r - l) / 2;
-        if (splited_chunk_num(col_size, col_num, chunk_size) <= chunk_num) {
+        int chunk_cnt = 0;
+        for (int i = 0, current_chunk_size = 0; i < col_num; ++i) {
+            current_chunk_size += col_size[i];
+            if (current_chunk_size > chunk_size) {
+                if (col_size[i] > chunk_size) {
+                    chunk_cnt = 0x3f3f3f3f;
+                    break;
+                }
+                current_chunk_size = col_size[i];
+                chunk_cnt += 1;
+            }
+        }
+        chunk_cnt += 1;
+
+        if (chunk_cnt <= chunk_num) {
             r = chunk_size;
         } else {
             l = chunk_size + 1;
@@ -70,32 +59,68 @@ static bool real_get_chunk_ranges(
     CooChunkRange *ranges,
     int *col_size,
     int col_num,
+    int *col_shadow,
     int chunk_num,
     int max_chunk_size) {
-    int i, current_chunk_size, current_chunk_begin, current_chunk_idx;
-    for (i = 0,
-        current_chunk_size = 0,
-        current_chunk_begin = 0,
+    int i = 0, current_chunk_size = 0, current_chunk_begin = 0,
         current_chunk_idx = 0;
-         i < col_num;
-         ++i) {
-        if (current_chunk_idx >= chunk_num) {
-            return false;
-        }
-        if (current_chunk_size + col_size[i] > max_chunk_size) {
-            ranges[current_chunk_idx].row_begin = current_chunk_begin;
-            ranges[current_chunk_idx].row_num = i - current_chunk_begin;
-            ranges[current_chunk_idx].size = current_chunk_size;
 
-            current_chunk_size = 0;
-            current_chunk_begin = i;
-            current_chunk_idx += 1;
-        }
+    while (i < col_num) {
+        if (i + SHADOW_BLOCK_SIZE < col_num) {
+            int new_chunk_size =
+                current_chunk_size + col_shadow[i / SHADOW_BLOCK_SIZE];
 
-        current_chunk_size += col_size[i];
+            if (new_chunk_size <= max_chunk_size) {
+                current_chunk_size = new_chunk_size;
+            } else {
+                for (int j = 0; j < SHADOW_BLOCK_SIZE; ++j) {
+                    if (col_size[i + j] > max_chunk_size) {
+                        return false;
+                    }
+
+                    if (current_chunk_size + col_size[i + j] > max_chunk_size) {
+                        if (current_chunk_idx >= chunk_num) {
+                            return false;
+                        }
+                        ranges[current_chunk_idx].row_begin =
+                            current_chunk_begin;
+                        ranges[current_chunk_idx].row_num =
+                            i + j - current_chunk_begin;
+                        ranges[current_chunk_idx].size = current_chunk_size;
+
+                        current_chunk_size = 0;
+                        current_chunk_begin = i + j;
+                        current_chunk_idx += 1;
+                    }
+                    current_chunk_size += col_size[i + j];
+                }
+            }
+
+            i += SHADOW_BLOCK_SIZE;
+        } else {
+            if (col_size[i] > max_chunk_size) {
+                return false;
+            }
+
+            if (current_chunk_size + col_size[i] > max_chunk_size) {
+                ranges[current_chunk_idx].row_begin = current_chunk_begin;
+                ranges[current_chunk_idx].row_num = i - current_chunk_begin;
+                ranges[current_chunk_idx].size = current_chunk_size;
+
+                current_chunk_size = 0;
+                current_chunk_begin = i;
+                if (current_chunk_idx >= chunk_num) {
+                    return false;
+                }
+                current_chunk_idx += 1;
+            }
+
+            current_chunk_size += col_size[i];
+            i += 1;
+        }
     }
 
-    if (current_chunk_idx < chunk_num) {
+    if (current_chunk_size != 0) {
         ranges[current_chunk_idx].row_begin = current_chunk_begin;
         ranges[current_chunk_idx].row_num = i - current_chunk_begin;
         ranges[current_chunk_idx].size = current_chunk_size;
@@ -103,6 +128,10 @@ static bool real_get_chunk_ranges(
         current_chunk_size = 0;
         current_chunk_begin = i;
         current_chunk_idx += 1;
+    }
+
+    if (current_chunk_idx > chunk_num) {
+        return false;
     }
 
     while (current_chunk_idx < chunk_num) {
@@ -120,6 +149,7 @@ static void get_chunk_ranges(
     int *col_size,
     int total_size,
     int col_num,
+    int *col_shadow,
     int chunk_num) {
     static int last_max_chunk_size;
 
@@ -128,6 +158,7 @@ static void get_chunk_ranges(
                 ranges,
                 col_size,
                 col_num,
+                col_shadow,
                 chunk_num,
                 last_max_chunk_size)) {
             int max_chunk = 0;
@@ -148,6 +179,7 @@ static void get_chunk_ranges(
         ranges,
         col_size,
         col_num,
+        col_shadow,
         chunk_num,
         last_max_chunk_size);
 }
@@ -185,39 +217,95 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
     SplitedCooMatrix result;
     int row_num = ldu_matrix.cells;
 
-    int *mem = (int *)malloc(
-        sizeof(int)
-        * (ldu_matrix.cells + chunk_num * 2 + chunk_num * chunk_num * 2));
-    int *col_begin = mem;
-    int *col_end = mem + chunk_num;
-    int *chunk_block_off = mem + chunk_num * 2;
-    int *block_size = mem + chunk_num * 2 + chunk_num * chunk_num;
-    int *row_size = mem + chunk_num * 2 + chunk_num * chunk_num * 2;
-    int *bscache = mem + chunk_num * 2 + chunk_num * chunk_num * 2;
+    int *mem = (int *)malloc(sizeof(int) * (chunk_num * chunk_num * 2));
+    int *chunk_block_off = mem;
+    int *block_size = chunk_block_off + chunk_num * chunk_num;
+
+    static int bscache[99999];
+    static int last_matrix_size;
+    static CooChunkRange last_split[99];
+
+    int hit = true;
+
+    if (last_matrix_size != row_num) {
+        hit = false;
+    }
+
+    if (hit) {
+        int *chunk_size = (int *)malloc(sizeof(int) * chunk_num);
+        memset(chunk_size, 0, sizeof(int) * chunk_num);
+        for (int i = 0; i < ldu_matrix.faces; i += 512) {
+            chunk_size[bscache[ldu_matrix.uPtr[i]]] += 1;
+            chunk_size[bscache[ldu_matrix.lPtr[i]]] += 1;
+        }
+        int max_chunk = 0;
+        int min_chunk = 999999999;
+        for (int i = 0; i < chunk_num; ++i) {
+            min_chunk = std::min(min_chunk, chunk_size[i]);
+            max_chunk = std::max(max_chunk, chunk_size[i]);
+        }
+        if (10 * (max_chunk - min_chunk) < max_chunk) {
+            hit = false;
+        }
+        free(chunk_size);
+    }
 
     result.chunk_num = chunk_num;
     result.chunk_ranges =
         (CooChunkRange *)malloc(sizeof(CooChunkRange) * chunk_num);
 
-    int total_size = 0;
-    for (int i = 0; i < ldu_matrix.cells; i++) {
-        row_size[i] = 1;
-    }
-    for (int i = 0; i < ldu_matrix.faces; i++) {
-        row_size[ldu_matrix.lPtr[i]] += 1;
-        row_size[ldu_matrix.uPtr[i]] += 1;
-    }
+    if (hit) {
+        memcpy(
+            result.chunk_ranges,
+            last_split,
+            sizeof(CooChunkRange) * chunk_num);
+    } else {
+        int *tmp_mem = (int *)malloc(sizeof(int) * (ldu_matrix.cells + row_num / SHADOW_BLOCK_SIZE + 1));
+        int *row_size = tmp_mem;
+        int *row_shadow = tmp_mem + ldu_matrix.cells;
 
-    for (int i = 0; i < row_num; ++i) {
-        total_size += row_size[i];
-    }
+        memset(row_shadow, 0, sizeof(int) * row_num / SHADOW_BLOCK_SIZE + 1);
+        int total_size = 0;
+        for (int i = 0; i < ldu_matrix.cells; i++) {
+            row_size[i] = 1;
+            row_shadow[i / SHADOW_BLOCK_SIZE] += 1;
+        }
+        for (int i = 0; i < ldu_matrix.faces; i++) {
+            row_size[ldu_matrix.lPtr[i]] += 1;
+            row_size[ldu_matrix.uPtr[i]] += 1;
+            row_shadow[ldu_matrix.lPtr[i] / SHADOW_BLOCK_SIZE] += 1;
+            row_shadow[ldu_matrix.uPtr[i] / SHADOW_BLOCK_SIZE] += 1;
+        }
 
-    get_chunk_ranges(
-        result.chunk_ranges,
-        row_size,
-        total_size,
-        row_num,
-        chunk_num);
+        for (int i = 0; i < row_num / SHADOW_BLOCK_SIZE + 1; ++i) {
+            total_size += row_shadow[i];
+        }
+
+        get_chunk_ranges(
+            result.chunk_ranges,
+            row_size,
+            total_size,
+            row_num,
+            row_shadow,
+            chunk_num);
+
+        for (int i = 0; i < chunk_num; ++i) {
+            for (int j = result.chunk_ranges[i].row_begin;
+                 j < result.chunk_ranges[i].row_begin
+                     + result.chunk_ranges[i].row_num;
+                 ++j) {
+                bscache[j] = i;
+            }
+        }
+
+        last_matrix_size = ldu_matrix.cells;
+        memcpy(
+            last_split,
+            result.chunk_ranges,
+            sizeof(CooChunkRange) * chunk_num);
+
+        free(tmp_mem);
+    }
 
     result.chunks = (SizedCooChunk *)malloc(sizeof(SizedCooChunk) * chunk_num);
     for (int i = 0; i < chunk_num; ++i) {
@@ -247,19 +335,10 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         chunk.blocks[chunk.block_num].block_off = chunk_data_size;
     }
 
-    for (int i = 0; i < result.chunk_num; ++i) {
-        col_begin[i] = result.chunk_ranges[i].row_begin;
-        col_end[i] = col_begin[i] + result.chunk_ranges[i].row_num;
-    }
-
     memset(block_size, 0, sizeof(int) * chunk_num * chunk_num);
 
-    for (int i = 0, idx = 0; i < ldu_matrix.cells; ++i) {
-        while (col_end[idx] <= i) {
-            idx += 1;
-        }
-        bscache[i] = idx;
-        block_size[idx * result.chunk_num + idx] += 1;
+    for (int i = 0; i < chunk_num; ++i) {
+        block_size[i * chunk_num + i] = result.chunk_ranges[i].row_num;
     }
 
     for (int i = 0; i < ldu_matrix.faces; ++i) {
@@ -282,11 +361,27 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         }
     }
 
+    for (int i = 0; i < chunk_num; ++i) {
+        auto &idx = chunk_block_off[i * result.chunk_num + i];
+        auto &chunk = *result.chunks[i].chunk;
+        memcpy(
+            chunk.data + idx,
+            ldu_matrix.diag + result.chunk_ranges[i].row_begin,
+            sizeof(double) * result.chunk_ranges[i].row_num);
+        for (int j = 0; j < result.chunk_ranges[i].row_num; ++j) {
+            chunk.row_idx[idx] = j;
+            chunk.col_idx[idx] = j;
+            idx += 1;
+        }
+    }
+
     for (int i = 0; i < ldu_matrix.faces; ++i) {
         int idx1 = bscache[ldu_matrix.uPtr[i]];
-        int idx1_offset = ldu_matrix.uPtr[i] - col_begin[idx1];
+        int idx1_offset =
+            ldu_matrix.uPtr[i] - result.chunk_ranges[idx1].row_begin;
         int idx2 = bscache[ldu_matrix.lPtr[i]];
-        int idx2_offset = ldu_matrix.lPtr[i] - col_begin[idx2];
+        int idx2_offset =
+            ldu_matrix.lPtr[i] - result.chunk_ranges[idx2].row_begin;
         int idx_21 = chunk_block_off[idx2 * result.chunk_num + idx1];
         chunk_block_off[idx2 * result.chunk_num + idx1] += 1;
         int idx_12 = chunk_block_off[idx1 * result.chunk_num + idx2];
@@ -299,16 +394,6 @@ ldu_to_splited_coo(const LduMatrix &ldu_matrix, int chunk_num) {
         result.chunks[idx2].chunk->row_idx[idx_21] = idx2_offset;
         result.chunks[idx2].chunk->col_idx[idx_21] = idx1_offset;
         result.chunks[idx2].chunk->data[idx_21] = ldu_matrix.upper[i];
-    }
-
-    for (int i = 0; i < ldu_matrix.cells; ++i) {
-        int id = bscache[i];
-        auto &chunk = *result.chunks[id].chunk;
-        auto &idx = chunk_block_off[id * result.chunk_num + id];
-        chunk.row_idx[idx] = i - col_begin[id];
-        chunk.col_idx[idx] = i - col_begin[id];
-        chunk.data[idx] = ldu_matrix.diag[i];
-        idx += 1;
     }
 
     free(mem);
