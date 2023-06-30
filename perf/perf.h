@@ -100,11 +100,11 @@ static inline void slave_perf_report(PerfEnv *env) {
         }
     }
 
-    printf("%-20s|%-20s|%20s\n", "unit_name", "clocks", "percentage");
+    printf("%-8s|%-20s|%-20s|%20s\n", "slave id", "unit_name", "clocks", "percentage");
     printf("\n");
     for (int i = 0; i < env->unit_num; ++i) {
         int unit_id = sorted_unit_id[i];
-        printf("%-20s|%-20lu|%20.2f%%\n", env->unit_name[unit_id], env->total_clocks[unit_id],
+        printf("slave%02d |%-20s|%-20lu|%20.2f%%\n", env->slave_id, env->unit_name[unit_id], env->total_clocks[unit_id],
  env->total_clocks[unit_id] * 100.0 / env->clocks);
     }
 }
