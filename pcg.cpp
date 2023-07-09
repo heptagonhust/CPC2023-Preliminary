@@ -49,7 +49,7 @@ PCGReturn pcg_solve(
     SplitedCooMatrix splited_matrix = ldu_to_splited_coo(ldu_matrix, SLAVE_CORE_NUM);
     gettimeofday(&tv,NULL);
     double end = (double)(tv.tv_sec)+(double)(tv.tv_usec)*1e-6;
-    INFO("split time: %.4lfs\n", end - start);
+    // INFO("split time: %.4lfs\n", end - start);
 
     Slave_task ntask[SLAVE_CORE_NUM];
     for (int i = 0; i < SLAVE_CORE_NUM; ++i) {

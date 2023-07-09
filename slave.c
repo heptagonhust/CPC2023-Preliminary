@@ -109,23 +109,16 @@ void slave_MainLoop(MainLoopPara *para_mem) {
     //* get spmv chunk data
     int chunk_data_size = chunk->blocks[chunk->block_num].block_off;
     if (chunk_data_size % 2) chunk_data_size++;
-    //! only for debug
-    int ldm_left_size = CRTS_pldm_get_free_size();
-    if (ldm_left_size >= chunk_data_size * sizeof(double) * 1.5 + 64 * 3) {
-        double *data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
-        DMA_IGET(data, chunk->data, chunk_data_size * sizeof(double), &get_rply, get_cnt);
-        uint16_t *row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
-        DMA_IGET(row_idx, chunk->row_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
-        uint16_t *col_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
-        DMA_IGET(col_idx, chunk->col_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
-        DMA_WAIT(&get_rply, get_cnt);
-        chunk->data = data;
-        chunk->row_idx = row_idx;
-        chunk->col_idx = col_idx;
-    }
-    else {
-        printf("[ERROR] Coo matrix size is more than expected!\n");
-    }
+    double *data = (double *)CRTS_pldm_malloc(chunk_data_size * sizeof(double));
+    DMA_IGET(data, chunk->data, chunk_data_size * sizeof(double), &get_rply, get_cnt);
+    uint16_t *row_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+    DMA_IGET(row_idx, chunk->row_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
+    uint16_t *col_idx = (uint16_t *)CRTS_pldm_malloc(chunk_data_size * sizeof(uint16_t));
+    DMA_IGET(col_idx, chunk->col_idx, chunk_data_size * sizeof(uint16_t), &get_rply, get_cnt);
+    DMA_WAIT(&get_rply, get_cnt);
+    chunk->data = data;
+    chunk->row_idx = row_idx;
+    chunk->col_idx = col_idx;
     CRTS_ssync_array();
     slave_coo_spmv(chunk, p, p_list, Ax, &buffer, non_0_block_num, &non_0_block_idx[0]);
     for (int i = 0; i < vec_num; ++i) {
