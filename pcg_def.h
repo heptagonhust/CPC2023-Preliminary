@@ -3,13 +3,13 @@
 
 
 struct LduMatrix {
-        double *upper;
-        double *lower;
-        double *diag;
-        int *uPtr;
-        int *lPtr;
-        int faces;
-        int cells;
+	double *upper;
+	double *lower;
+	double *diag;
+	int *uPtr;
+	int *lPtr;
+	int faces;
+	int cells;
 };
 
 struct CsrMatrix {
