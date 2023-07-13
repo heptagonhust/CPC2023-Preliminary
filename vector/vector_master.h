@@ -1,6 +1,5 @@
 #pragma once
 
-#include "pcg_def.h"
 #include "vector_def.h"
 
 double pcg_gsumMag_opt(

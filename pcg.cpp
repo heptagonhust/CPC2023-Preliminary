@@ -1,4 +1,4 @@
-#include "pcg.h"
+#include "pcg_opt.h"
 
 #include <crts.h>
 #include <math.h>

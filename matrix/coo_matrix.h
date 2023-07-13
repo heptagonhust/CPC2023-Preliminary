@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pcg.h"
+#include "pcg_opt.h"
 #include "spmv_def.h"
 
 extern SplitedCooMatrix

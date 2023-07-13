@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "pcg.h"
-#include "pcg_def.h"
+#include "pcg_opt.h"
+#include "pcg_def_opt.h"
 #include "vector_utils.cpp"
 
 void ldu_to_csr(const LduMatrix &ldu_matrix, CsrMatrix &csr_matrix) {

@@ -8,7 +8,7 @@
 #include "matrix/csc_matrix.h"
 #include "csr_matrix.cpp"
 #include "matrix/matrix_utils.h"
-#include "pcg_def.h"
+#include "pcg_def_opt.h"
 #include "vector_utils.cpp"
 
 bool check_csc_matrix_row_number_order(CscMatrix &mtx) {

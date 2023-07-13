@@ -3,7 +3,7 @@
 #include <cstring>
 
 #include "matrix_utils.h"
-#include "pcg.h"
+#include "pcg_opt.h"
 #include "spmv_def.h"
 #include "csc_matrix.h"
 

@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <vector>
 
-#include "pcg_def.h"
+#include "pcg_def_opt.h"
 
 int count_ldu_matrix_nonzero_elements(const LduMatrix &ldu_matrix) {
     int result = 0;

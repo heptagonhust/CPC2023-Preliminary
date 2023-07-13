@@ -8,7 +8,7 @@
 #include "csr_matrix.cpp"
 #include "matrix/coo_matrix.h"
 #include "matrix/matrix_utils.h"
-#include "pcg_def.h"
+#include "pcg_def_opt.h"
 
 void pcg_init_precondition_csr(
     const CsrMatrix &csr_matrix,

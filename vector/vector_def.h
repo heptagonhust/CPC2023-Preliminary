@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pcg_def_opt.h"
+
 typedef struct {
     int col_start;
     int col_num;

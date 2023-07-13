@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pcg_def.h"
+#include "pcg_def_opt.h"
 #include "spmv_def.h"
 #include "spmv_slave.h"
 #include "coo_matrix.h"

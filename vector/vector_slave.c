@@ -4,7 +4,6 @@
 #include <slave.h>
 #include <math.h>
 #include <simd.h>
-#include "pcg_def.h"
 #include "vector_def.h"
 
 

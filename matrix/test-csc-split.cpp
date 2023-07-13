@@ -7,7 +7,7 @@
 
 #include "matrix/csc_matrix.h"
 #include "matrix/matrix_utils.h"
-#include "pcg_def.h"
+#include "pcg_def_opt.h"
 
 int main(void) {
     srand(time(NULL));

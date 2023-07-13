@@ -8,8 +8,7 @@
 
 #include <cstring>
 
-#include "pcg.h"
-#include "pcg_def.h"
+#include "pcg_opt.h"
 
 
 //! res += fasb(r[i])
